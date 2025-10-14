@@ -44,7 +44,6 @@
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>ID</th>
                             <th>ФИО пациента</th>
                             <th>Телефон</th>
                             <th>Количество приёмов</th>
@@ -55,7 +54,6 @@
                     <tbody>
                         @foreach($patients as $patient)
                             <tr>
-                                <td>{{ $patient->id }}</td>
                                 <td>
                                     <i class="bi bi-person text-success"></i>
                                     <strong>{{ $patient->full_name }}</strong>

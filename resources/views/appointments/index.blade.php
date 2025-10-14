@@ -68,7 +68,6 @@
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>ID</th>
                             <th>Дата</th>
                             <th>Время</th>
                             <th>Пациент</th>
@@ -83,7 +82,6 @@
                     <tbody>
                         @foreach($appointments as $appointment)
                             <tr>
-                                <td>{{ $appointment->id }}</td>
                                 <td>{{ $appointment->date->format('d.m.Y') }}</td>
                                 <td><strong>{{ $appointment->time }}</strong></td>
                                 <td>

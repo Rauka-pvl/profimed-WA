@@ -26,7 +26,6 @@
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>ID</th>
                             <th>ФИО врача</th>
                             <th>Количество приёмов</th>
                             <th>Дата добавления</th>
@@ -36,7 +35,6 @@
                     <tbody>
                         @foreach($doctors as $doctor)
                             <tr>
-                                <td>{{ $doctor->id }}</td>
                                 <td>
                                     <i class="bi bi-person-badge text-primary"></i>
                                     <strong>{{ $doctor->name }}</strong>
