@@ -92,6 +92,8 @@ class GreenApiService
 
             $response = Http::get($url);
 
+            Log::info('Получение уведомлений от Green API', ['response' => $response->body()]);
+
             if ($response->successful()) {
                 return $response->json() ?? [];
             }
