@@ -18,7 +18,7 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 
 // Webhook для Green API (без аутентификации)
-Route::post('/webhook/whatsapp', [WebhookController::class, 'handleIncoming'])->name('webhook.whatsapp');
+Route::get('/webhook/whatsapp', [WebhookController::class, 'handleIncoming'])->name('webhook.whatsapp');
 
 // Защищённые маршруты (требуют аутентификации)
 Route::middleware('auth')->group(function () {
