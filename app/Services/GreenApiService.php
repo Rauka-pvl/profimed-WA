@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Log;
 
 class GreenApiService
 {
-    protected $instanceId = '7105339334';
-    protected $apiToken = 'f0317185b97246c6bba0d986105e50af8fa7986db8804c74a6';
+    protected $instanceId = '7105343963';
+    protected $apiToken = '07e94e138d7e4c0a99534bf824010a031865571c09ed40de9d';
     protected $baseUrl = "https://7105.api.greenapi.com";
 
     /**
