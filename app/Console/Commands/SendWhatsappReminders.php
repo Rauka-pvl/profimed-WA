@@ -94,7 +94,7 @@ class SendWhatsappReminders extends Command
         $count = 0;
         foreach ($appointments as $appointment) {
             // Проверяем, что приём через 3 часа (±15 минут)
-            $appointmentTime = Carbon::parse($appointment->date . ' ' . explode(' - ', $appointment->time)[0]);
+            $appointmentTime = Carbon::parse(explode(' ', $appointment->date)[0] . ' ' . explode(' - ', $appointment->time)[0]);
             $diffInMinutes = $now->diffInMinutes($appointmentTime, false);
 
             // Отправляем если осталось от 165 до 195 минут (3 часа ± 15 минут)
