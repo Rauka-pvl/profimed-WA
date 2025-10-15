@@ -57,6 +57,7 @@ class SendWhatsappReminders extends Command
 
             $success = $this->greenApi->send24HourReminder(
                 $patient->phone,
+                $patient->full_name,
                 $doctor->name,
                 $dateFormatted,
                 $appointment->time,
