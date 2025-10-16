@@ -32,9 +32,9 @@ class WebhookController extends Controller
                 return response()->json(['status' => 'no notifications']);
             }
 
-            foreach ($notifications as $notification) {
-                $this->processNotification($notification);
-            }
+            // foreach ($notifications as $notification) {
+            $this->processNotification($notifications);
+            // }
 
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
