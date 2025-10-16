@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Log;
 
 class GreenApiService
 {
-    protected $instanceId = '7105343963';
-    protected $apiToken = '07e94e138d7e4c0a99534bf824010a031865571c09ed40de9d';
-    protected $baseUrl = "https://7105.api.greenapi.com";
+    protected $instanceId = '7107345704';
+    protected $apiToken = '80d626f6374c41e5a80b0b13a3f61c1604ca0e3498ae43649c';
+    protected $baseUrl = "https://7107.api.green-api.com";
 
     /**
      * Отправка сообщения в WhatsApp
