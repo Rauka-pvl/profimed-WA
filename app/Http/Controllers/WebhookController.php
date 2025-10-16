@@ -22,25 +22,25 @@ class WebhookController extends Controller
      */
     public function handleIncoming(Request $request)
     {
-        Log::info('Получение уведомлений от Green API', ['request' => $request->all()]);
-        return response()->json(['status' => 'received']);
-        // try {
-        //     // Получаем уведомления
-        //     $notifications = $this->greenApi->receiveNotifications();
+        // Log::info('Получение уведомлений от Green API', ['request' => $request->all()]);
+        // return response()->json(['status' => 'received']);
+        try {
+            // Получаем уведомления
+            $notifications = $request->all();
 
-        //     if (empty($notifications)) {
-        //         return response()->json(['status' => 'no notifications']);
-        //     }
+            if (empty($notifications)) {
+                return response()->json(['status' => 'no notifications']);
+            }
 
-        //     foreach ($notifications as $notification) {
-        //         $this->processNotification($notification);
-        //     }
+            foreach ($notifications as $notification) {
+                $this->processNotification($notification);
+            }
 
-        //     return response()->json(['status' => 'success']);
-        // } catch (\Exception $e) {
-        //     Log::error('Webhook error: ' . $e->getMessage());
-        //     return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        // }
+            return response()->json(['status' => 'success']);
+        } catch (\Exception $e) {
+            Log::error('Webhook error: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -50,19 +50,19 @@ class WebhookController extends Controller
     {
         // Проверяем тип уведомления (только входящие сообщения)
         if (
-            !isset($notification['body']['typeWebhook']) ||
-            $notification['body']['typeWebhook'] !== 'incomingMessageReceived'
+            !isset($notification['typeWebhook']) ||
+            $notification['typeWebhook'] !== 'incomingMessageReceived'
         ) {
             return;
         }
 
-        $messageData = $notification['body']['messageData'] ?? null;
+        $messageData = $notification['messageData'] ?? null;
         if (!$messageData) {
             return;
         }
 
         // Извлекаем номер телефона и текст сообщения
-        $chatId = $messageData['chatId'] ?? null;
+        $chatId = $notification['senderData']['chatId'] ?? null;
         $messageText = trim(mb_strtoupper($messageData['textMessageData']['textMessage'] ?? ''));
 
         if (!$chatId || !$messageText) {
@@ -71,7 +71,6 @@ class WebhookController extends Controller
 
         // Форматируем номер телефона (убираем @c.us)
         $phone = str_replace('@c.us', '', $chatId);
-        $phone = '+' . $phone;
 
         // Ищем пациента по номеру телефона
         $patient = Patient::where('phone', $phone)->first();
@@ -94,23 +93,23 @@ class WebhookController extends Controller
         }
 
         // Обрабатываем ответ ДА/НЕТ
-        if (str_contains($messageText, 'ДА') || str_contains($messageText, 'YES')) {
+        if (str_contains($messageText, 'ДА') || str_contains($messageText, 'ИӘ') || str_contains($messageText, 'YES')) {
             $appointment->update(['status' => 'confirmed']);
             Log::info("Приём подтверждён: {$patient->full_name} - {$appointment->date} {$appointment->time}");
 
             // Отправляем подтверждение
             $this->greenApi->sendMessage(
                 $phone,
-                "✅ Спасибо! Ваш приём подтверждён. Ждём вас!"
+                "✅ Спасибо! Ваш приём подтверждён. Ждём вас!\n✅ Рақмет! Сіздің қабылдауыңыз расталды. Сізді күтеміз!"
             );
-        } elseif (str_contains($messageText, 'НЕТ') || str_contains($messageText, 'NO')) {
+        } elseif (str_contains($messageText, 'НЕТ') || str_contains($messageText, 'ЖОҚ') || str_contains($messageText, 'ЖОК') || str_contains($messageText, 'NO')) {
             $appointment->update(['status' => 'cancelled']);
             Log::info("Приём отменён: {$patient->full_name} - {$appointment->date} {$appointment->time}");
 
             // Отправляем подтверждение отмены
             $this->greenApi->sendMessage(
                 $phone,
-                "❌ Ваш приём отменён. При необходимости запишитесь на другое время. Спасибо!"
+                "❌ Ваш приём отменён. При необходимости запишитесь на другое время. Спасибо!\n❌ Сіздің қабылдауыңыз тоқтатылды. Қажет болса, өзіңізге ыңғайлы басқа уақытқа жазылыңыз. Рақмет!"
             );
         }
 
