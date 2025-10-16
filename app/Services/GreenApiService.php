@@ -29,6 +29,7 @@ class GreenApiService
 
             if ($response->successful()) {
                 Log::info("WhatsApp сообщение отправлено: {$phone}");
+                Log::info('Response: ' . $response->body());
                 return true;
             }
 
