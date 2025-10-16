@@ -69,8 +69,10 @@ class WebhookController extends Controller
             return;
         }
 
+        $phone = $chatId;
+
         // Форматируем номер телефона (убираем @c.us)
-        $phone = str_replace('@c.us', '', $chatId);
+        // $phone = str_replace('@c.us', '', $chatId);
 
         // Ищем пациента по номеру телефона
         $patient = Patient::where('phone', $phone)->first();
