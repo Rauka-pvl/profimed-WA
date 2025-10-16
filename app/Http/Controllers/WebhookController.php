@@ -22,25 +22,25 @@ class WebhookController extends Controller
      */
     public function handleIncoming(Request $request)
     {
-        // Log::info('Получение уведомлений от Green API', ['request' => $request->all()]);
-        // return response()->json(['status' => 'received']);
-        try {
-            // Получаем уведомления
-            $notifications = $request->all();
+        Log::info('Получение уведомлений от Green API', ['request' => $request->all()]);
+        return response()->json(['status' => 'received']);
+        // try {
+        //     // Получаем уведомления
+        //     $notifications = $request->all();
 
-            if (empty($notifications)) {
-                return response()->json(['status' => 'no notifications']);
-            }
+        //     if (empty($notifications)) {
+        //         return response()->json(['status' => 'no notifications']);
+        //     }
 
-            // foreach ($notifications as $notification) {
-            $this->processNotification($notifications);
-            // }
+        //     // foreach ($notifications as $notification) {
+        //     $this->processNotification($notifications);
+        //     // }
 
-            return response()->json(['status' => 'success']);
-        } catch (\Exception $e) {
-            Log::error('Webhook error: ' . $e->getMessage());
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
+        //     return response()->json(['status' => 'success']);
+        // } catch (\Exception $e) {
+        //     Log::error('Webhook error: ' . $e->getMessage());
+        //     return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        // }
     }
 
     /**
