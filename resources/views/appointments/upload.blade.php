@@ -46,13 +46,13 @@
                     <ol class="mb-0">
                         <li>Выберите PDF-файл с расписанием врачей</li>
                         <li>Нажмите кнопку "Загрузить и обработать"</li>
-                        <li>Система автоматически:
+                        {{-- <li>Система автоматически:
                             <ul>
                                 <li>Распарсит PDF-файл</li>
                                 <li>Создаст или обновит записи врачей и пациентов</li>
                                 <li>Добавит все приёмы в базу данных</li>
                             </ul>
-                        </li>
+                        </li> --}}
                     </ol>
                 </div>
 
@@ -74,7 +74,7 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                         <div class="form-text">
-                            Максимальный размер файла: 10 МБ. Формат: PDF
+                            Максимальный размер файла: 100 МБ. Формат: PDF
                         </div>
                     </div>
 
@@ -91,7 +91,7 @@
         </div>
 
         <!-- Дополнительная информация -->
-        <div class="card mt-4">
+        {{-- <div class="card mt-4">
             <div class="card-header bg-white">
                 <h6 class="mb-0">
                     <i class="bi bi-question-circle"></i> Формат PDF-файла
@@ -115,7 +115,7 @@
                     </ul>
                 </div>
             </div>
-        </div>
+        </div> --}}
     </div>
 </div>
 @endsection
