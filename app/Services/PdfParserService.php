@@ -40,7 +40,7 @@ class PdfParserService
             // --- Ищем дату и врача ---
             if (
                 !preg_match(
-                    '/(\d{2}\.\d{2}\.\d{4})\s+([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+(?:\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+){0,2})/u',
+                    '/(\d{2}\.\d{2}\.\d{4})\s+([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+(?:\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+)?)(?=\s+(?!Время))/u',
                     $block,
                     $m
                 )
@@ -93,21 +93,49 @@ class PdfParserService
                     $patient->update(['phone' => $primaryPhone]);
                 }
 
-                // 🔹 Проверим запись
+                // 🔹 Проверим, не "отменённый" ли приём
+                $isCancelled = ($start === '00:00' || $end === '00:00');
+
+                // 🔹 Ищем существующий приём по пациенту, врачу и дате
                 $appointment = Appointment::where([
                     ['doctor_id', $doctor->id],
                     ['patient_id', $patient->id],
                     ['date', $date],
-                    ['time', $time],
                 ])->first();
 
                 if ($appointment) {
+                    // 🔸 Если новое время 00:00 → отменяем
+                    if ($isCancelled) {
+                        $appointment->update([
+                            'status' => 'cancelled',
+                            'time' => '00:00',
+                            'cabinet' => $cabinet ?: '',
+                            'service' => $service ?: 'Не указано',
+                        ]);
+                        $this->stats['updated']++;
+                        continue;
+                    }
+
+                    // 🔸 Если уже существующая запись имела другое время — обновляем как запланированную
+                    if ($appointment->time !== $time) {
+                        $appointment->update([
+                            'time' => $time,
+                            'status' => 'scheduled',
+                            'cabinet' => $cabinet ?: '',
+                            'service' => $service ?: 'Не указано',
+                        ]);
+                        $this->stats['updated']++;
+                        continue;
+                    }
+
+                    // 🔸 Если совпадает полностью — просто обновляем данные
                     $appointment->update([
                         'service' => $service ?: 'Не указано',
                         'cabinet' => $cabinet ?: '',
                     ]);
                     $this->stats['updated']++;
                 } else {
+                    // 🔹 Новый приём
                     Appointment::create([
                         'doctor_id' => $doctor->id,
                         'patient_id' => $patient->id,
@@ -115,7 +143,7 @@ class PdfParserService
                         'cabinet' => $cabinet ?: '',
                         'date' => $date,
                         'time' => $time,
-                        'status' => 'scheduled',
+                        'status' => $isCancelled ? 'cancelled' : 'scheduled',
                     ]);
                     $this->stats['added']++;
                 }
