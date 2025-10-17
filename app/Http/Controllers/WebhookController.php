@@ -22,25 +22,25 @@ class WebhookController extends Controller
      */
     public function handleIncoming(Request $request)
     {
-        Log::info('Получение уведомлений от Green API', ['request' => $request->all()]);
-        return response()->json(['status' => 'received']);
-        // try {
-        //     // Получаем уведомления
-        //     $notifications = $request->all();
+        // Log::info('Получение уведомлений от Green API', ['request' => $request->all()]);
+        // return response()->json(['status' => 'received']);
+        try {
+            // Получаем уведомления
+            $notifications = $request->all();
 
-        //     if (empty($notifications)) {
-        //         return response()->json(['status' => 'no notifications']);
-        //     }
+            if (empty($notifications)) {
+                return response()->json(['status' => 'no notifications']);
+            }
 
-        //     // foreach ($notifications as $notification) {
-        //     $this->processNotification($notifications);
-        //     // }
+            // foreach ($notifications as $notification) {
+            $this->processNotification($notifications);
+            // }
 
-        //     return response()->json(['status' => 'success']);
-        // } catch (\Exception $e) {
-        //     Log::error('Webhook error: ' . $e->getMessage());
-        //     return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        // }
+            return response()->json(['status' => 'success']);
+        } catch (\Exception $e) {
+            Log::error('Webhook error: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -72,7 +72,7 @@ class WebhookController extends Controller
         $phone = $chatId;
 
         // Форматируем номер телефона (убираем @c.us)
-        // $phone = str_replace('@c.us', '', $chatId);
+        $phone = str_replace('@c.us', '', $chatId);
 
         // Ищем пациента по номеру телефона
         $patient = Patient::where('phone', $phone)->first();
@@ -101,7 +101,7 @@ class WebhookController extends Controller
 
             // Отправляем подтверждение
             $this->greenApi->sendMessage(
-                $phone,
+                $chatId,
                 "✅ Спасибо! Ваш приём подтверждён. Ждём вас!\n✅ Рақмет! Сіздің қабылдауыңыз расталды. Сізді күтеміз!"
             );
         } elseif (str_contains($messageText, 'НЕТ') || str_contains($messageText, 'ЖОҚ') || str_contains($messageText, 'ЖОК') || str_contains($messageText, 'NO')) {
