@@ -9,8 +9,7 @@
         "php": "^8.2",
         "laravel/framework": "^11.31",
         "laravel/tinker": "^2.9",
-        "smalot/pdfparser": "^2.12",
-        "spatie/pdf-to-text": "^1.54"
+        "smalot/pdfparser": "^2.12"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
