@@ -6,6 +6,7 @@ use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\Appointment;
 use Smalot\PdfParser\Parser;
+use Carbon\Carbon;
 
 class PdfParserService
 {
@@ -27,19 +28,19 @@ class PdfParserService
         $pdf = $this->parser->parseFile($filePath);
         $text = $pdf->getText();
 
-        // --- Разбиваем на блоки по врачам ---
+        // --- Разбиваем по врачам (убираем слово "Время") ---
         $blocks = preg_split(
-            '/(?=\d{2}\.\d{2}\.\d{4}\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+)/u',
+            '/(?=\d{2}\.\d{2}\.\d{4}\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+)/u',
             $text,
             -1,
             PREG_SPLIT_NO_EMPTY
         );
 
         foreach ($blocks as $block) {
-            // --- Ищем дату и врача ---
+            // --- Ищем дату и врача (только фамилия + имя) ---
             if (
                 !preg_match(
-                    '/(\d{2}\.\d{2}\.\d{4})\s+([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+(?:\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+){0,2})/u',
+                    '/(\d{2}\.\d{2}\.\d{4})\s+([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+)\s+([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+)/u',
                     $block,
                     $m
                 )
@@ -48,16 +49,12 @@ class PdfParserService
             }
 
             $date = date('Y-m-d', strtotime(str_replace('.', '-', $m[1])));
-
-            // 🔹 Берём только фамилию и имя врача
-            $doctorNameParts = explode(' ', trim($m[2]));
-            $doctorName = implode(' ', array_slice($doctorNameParts, 0, 2));
-
+            $doctorName = trim("{$m[2]} {$m[3]}");
             $doctor = Doctor::firstOrCreate(['name' => $doctorName]);
 
             // --- Ищем приёмы ---
             preg_match_all(
-                '/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s*(.*?)\((.*?)\)\s*([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][^+]+)\+?\s*([+]?\d[\d\s\-()]{7,})?\s*(.+?)(?=(?:\d{2}:\д{2}\s*-\s*\д{2}:\д{2}|Всего приемов|$))/su',
+                '/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2}).*?\((.*?)\)\s*([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][^+]+)\+?\s*([+]?\d[\d\s\-()]{7,})?\s*(.+?)(?=(?:\d{2}:\d{2}|Всего|$))/su',
                 $block,
                 $matches,
                 PREG_SET_ORDER
@@ -68,27 +65,30 @@ class PdfParserService
                 $end = trim($m[2]);
                 $time = "{$start} - {$end}";
 
-                $cabinet = trim($m[4] ?? '');
+                // Отметка отменённого приёма
+                $isCancelled = ($start === '00:00' || $end === '00:00');
 
-                // 🔹 Берём только ФИО пациента — фамилия + имя
-                $patientFull = trim(preg_replace("/\s+/", ' ', $m[5]));
-                $patientParts = explode(' ', $patientFull);
-                $patientName = implode(' ', array_slice($patientParts, 0, 2));
+                $cabinet = trim($m[3] ?? '');
+                $patientName = trim(preg_replace("/\s+/", ' ', $m[4]));
 
-                // --- Извлекаем телефоны ---
+                // Берём только фамилию и имя пациента
+                if (preg_match('/^([А-ЯЁӘІҢҒҮҰҚӨҺ][а-яёәіңғүұқөһ]+)\s+([А-ЯЁӘІҢҒҮҰҚӨҺ][а-яёәіңғүұқөһ]+)/u', $patientName, $pm)) {
+                    $patientName = "{$pm[1]} {$pm[2]}";
+                }
+
                 preg_match_all('/(\+?\d[\d\s\-()]{7,})/u', $m[0], $phones);
                 $phones = array_map(fn($p) => preg_replace('/\D+/', '', $p), $phones[1] ?? []);
                 $phones = array_filter($phones);
                 $primaryPhone = $phones[0] ?? null;
 
-                $service = trim(preg_replace("/\s+/", ' ', $m[7]));
+                $service = trim(preg_replace("/\s+/", ' ', $m[6] ?? ''));
 
                 if (!$patientName) {
                     $this->stats['skipped']++;
                     continue;
                 }
 
-                // --- Пациент ---
+                // Пациент
                 $patient = Patient::firstOrCreate(
                     ['full_name' => $patientName],
                     ['phone' => $primaryPhone ?? '']
@@ -98,19 +98,16 @@ class PdfParserService
                     $patient->update(['phone' => $primaryPhone]);
                 }
 
-                // --- Проверим статус ---
-                $isCancelled = ($start === '00:00');
-
-                // --- Проверим запись ---
+                // Проверим существующую запись
                 $appointment = Appointment::where([
                     ['doctor_id', $doctor->id],
                     ['patient_id', $patient->id],
                     ['date', $date],
-                    ['time', $time],
                 ])->first();
 
                 if ($appointment) {
                     $appointment->update([
+                        'time' => $time,
                         'service' => $service ?: 'Не указано',
                         'cabinet' => $cabinet ?: '',
                         'status' => $isCancelled ? 'cancelled' : 'scheduled',
