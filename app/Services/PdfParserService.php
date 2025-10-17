@@ -31,17 +31,18 @@ class PdfParserService
 
         // --- Разделяем по врачам ---
         $blocks = preg_split(
-            '/(?=\d{2}\.\d{2}\.\d{4}\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+)/u',
+            '/(?=\d{2}\.\d{2}\.\д{4}\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+)/u',
             $text,
             -1,
             PREG_SPLIT_NO_EMPTY
         );
 
         foreach ($blocks as $block) {
+
             // --- Ищем дату и врача ---
             if (
                 !preg_match(
-                    '/(\d{2}\.\d{2}\.\d{4})\s+([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+(?:\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+){0,2})/u',
+                    '/(\d{2}\.\д{2}\.\д{4})\s+([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+(?:\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+){0,2})/u',
                     $block,
                     $m
                 )
@@ -55,13 +56,14 @@ class PdfParserService
 
             // --- Ищем приёмы ---
             preg_match_all(
-                '/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s*(.*?)\((.*?)\)\s*([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][^+]+)\+?\s*([+]?\d[\d\s\-()]{7,})?\s*(.+?)(?=(?:\d{2}:\d{2}\s*-\s*\d{2}:\d{2}|Всего приемов|$))/su',
+                '/(\d{2}:\д{2})\s*-\s*(\д{2}:\д{2})\s*(.*?)\((.*?)\)\s*([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][^+]+)\+?\s*([+]?\д[\д\s\-()]{7,})?\s*(.+?)(?=(?:\д{2}:\д{2}\s*-\s*\д{2}:\д{2}|Всего приемов|$))/su',
                 $block,
                 $matches,
                 PREG_SET_ORDER
             );
 
             foreach ($matches as $m) {
+
                 $start = trim($m[1]);
                 $end = trim($m[2]);
                 $time = "{$start} - {$end}";
@@ -74,11 +76,13 @@ class PdfParserService
                     continue;
                 }
 
-                // --- Извлекаем телефоны ---
-                preg_match_all('/(\+?\d[\d\s\-()]{7,})/u', $m[0], $phones);
+                // --- Извлекаем все телефоны ---
+                preg_match_all('/(\+?\д[\д\s\-()]{7,})/u', $m[0], $phones);
                 $phones = array_map(fn($p) => preg_replace('/\D+/', '', $p), $phones[1] ?? []);
-                $phones = array_filter($phones);
+                $phones = array_filter(array_unique($phones)); // уникальные и не пустые
+
                 $primaryPhone = $phones[0] ?? null;
+                $allPhones = implode(', ', $phones);
 
                 $service = trim(preg_replace("/\s+/", ' ', $m[7]));
 
@@ -88,12 +92,14 @@ class PdfParserService
                     ['phone' => $primaryPhone ?? '']
                 );
 
+                // обновляем телефон, если пустой
                 if (!$patient->phone && $primaryPhone) {
                     $patient->update(['phone' => $primaryPhone]);
                 }
 
                 // --- Определяем статус ---
-                $status = ($start === '00:00') ? 'cancelled' : 'scheduled';
+                $isCancelled = ($start === '00:00' || $end === '00:00');
+                $status = $isCancelled ? 'cancelled' : 'scheduled';
 
                 // --- Проверяем запись ---
                 $appointment = Appointment::where([
@@ -103,19 +109,23 @@ class PdfParserService
                 ])->first();
 
                 if ($appointment) {
-                    // Если уже есть, обновим время и статус
                     $appointment->update([
                         'time' => $time,
                         'service' => $service ?: 'Не указано',
                         'cabinet' => $cabinet ?: '',
                         'status' => $status,
+                        'phones' => $allPhones, // сохраняем все номера
                     ]);
 
                     $this->stats['updated']++;
 
-                    Log::info("🔁 Обновлено: {$doctorName} — {$patientName} — {$date} {$time} ({$status})");
+                    if ($isCancelled) {
+                        $this->stats['cancelled']++;
+                        Log::info("❌ Отменён: {$doctorName} — {$patientName} — {$date} {$time} — Телефоны: {$allPhones}");
+                    } else {
+                        Log::info("🔁 Обновлено: {$doctorName} — {$patientName} — {$date} {$time} — Телефоны: {$allPhones}");
+                    }
                 } else {
-                    // Если новой нет, создаём
                     Appointment::create([
                         'doctor_id' => $doctor->id,
                         'patient_id' => $patient->id,
@@ -124,18 +134,21 @@ class PdfParserService
                         'date' => $date,
                         'time' => $time,
                         'status' => $status,
+                        'phones' => $allPhones,
                     ]);
 
-                    if ($status === 'cancelled') {
+                    if ($isCancelled) {
                         $this->stats['cancelled']++;
-                        Log::info("❌ Отменён: {$doctorName} — {$patientName} — {$date} {$time}");
+                        Log::info("❌ Отменён: {$doctorName} — {$patientName} — {$date} {$time} — Телефоны: {$allPhones}");
                     } else {
                         $this->stats['added']++;
-                        Log::info("➕ Добавлено: {$doctorName} — {$patientName} — {$date} {$time}");
+                        Log::info("➕ Добавлено: {$doctorName} — {$patientName} — {$date} {$time} — Телефоны: {$allPhones}");
                     }
                 }
             }
         }
+
+        Log::info("📋 Импорт завершён. Добавлено: {$this->stats['added']}, Обновлено: {$this->stats['updated']}, Отменено: {$this->stats['cancelled']}, Пропущено: {$this->stats['skipped']}.");
 
         return $this->stats;
     }
