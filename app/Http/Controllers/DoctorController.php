@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\LogHelper;
 use App\Models\Doctor;
 use Illuminate\Http\Request;
 
@@ -27,7 +28,13 @@ class DoctorController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
-        Doctor::create($request->only('name'));
+        $doctor = Doctor::create($request->only('name'));
+
+        LogHelper::userAction('Cоздание врача', [
+            'model' => get_class($doctor),
+            'model_id' => $doctor->id,
+            'add' => $request->all(),
+        ]);
 
         return redirect()->route('doctors.index')
             ->with('success', 'Врач успешно добавлен');
@@ -46,12 +53,22 @@ class DoctorController extends Controller
 
         $doctor->update($request->only('name'));
 
+        LogHelper::userAction('Обновление врача', [
+            'model' => get_class($doctor),
+            'model_id' => $doctor->id,
+            'changes' => $request->all(),
+        ]);
+
         return redirect()->route('doctors.index')
             ->with('success', 'Врач успешно обновлён');
     }
 
     public function destroy(Doctor $doctor)
     {
+        LogHelper::userAction('Удалён врач', [
+            'doctor_id' => $doctor->id,
+            'Doctor' => $doctor->name ?? null,
+        ]);
         $doctor->delete();
 
         return redirect()->route('doctors.index')

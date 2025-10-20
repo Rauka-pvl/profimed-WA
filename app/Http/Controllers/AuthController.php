@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\LogHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -21,8 +22,14 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
+            LogHelper::userAction('Вход в систему');
             return redirect()->intended('/dashboard');
         }
+
+        LogHelper::userAction('Неудачная попытка входа', [
+            'email' => $request->email,
+        ]);
+
 
         return back()->withErrors([
             'email' => 'Неверный email или пароль.',

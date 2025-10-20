@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\LogHelper;
 use App\Services\PdfParserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -37,6 +38,10 @@ class PdfUploadController extends Controller
 
             // Парсим PDF
             $stats = $this->pdfParser->parse($fullPath);
+
+            LogHelper::userAction('Загрузка расписания врачей (PDF)', [
+                'filename' => $request->file('pdf')->getClientOriginalName(),
+            ]);
 
             return redirect()->route('appointment.upload')
                 ->with('success', 'PDF успешно загружен и обработан!')

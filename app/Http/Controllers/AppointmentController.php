@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Helpers\LogHelper;
 use Illuminate\Http\Request;
 
 class AppointmentController extends Controller
@@ -70,6 +71,10 @@ class AppointmentController extends Controller
 
     public function destroy(Appointment $appointment)
     {
+        LogHelper::userAction('Удалён приём', [
+            'appointment_id' => $appointment->id,
+            'patient' => $appointment->patient->full_name ?? null,
+        ]);
         $appointment->delete();
         return redirect()->route('appointments.index')
             ->with('success', 'Приём удалён');
@@ -82,6 +87,12 @@ class AppointmentController extends Controller
         ]);
 
         $appointment->update(['status' => $request->status]);
+
+        LogHelper::userAction('Обновление записии', [
+            'model' => get_class($appointment),
+            'model_id' => $appointment->id,
+            'changes' => $request->all(),
+        ]);
 
         return redirect()->back()
             ->with('success', 'Статус обновлён');

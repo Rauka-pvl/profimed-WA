@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\LogHelper;
 use App\Models\Patient;
 use Illuminate\Http\Request;
 
@@ -35,7 +36,13 @@ class PatientController extends Controller
             'phone' => 'nullable|string|max:20',
         ]);
 
-        Patient::create($request->only(['full_name', 'phone']));
+        $patient = Patient::create($request->only(['full_name', 'phone']));
+
+        LogHelper::userAction('Обновление пациента', [
+            'patient' => get_class($patient),
+            'patient_id' => $patient->id,
+            'changes' => $request->all(),
+        ]);
 
         return redirect()->route('patients.index')
             ->with('success', 'Пациент успешно добавлен');
@@ -55,12 +62,22 @@ class PatientController extends Controller
 
         $patient->update($request->only(['full_name', 'phone']));
 
+        LogHelper::userAction('Обновление пациента', [
+            'patient' => get_class($patient),
+            'patient_id' => $patient->id,
+            'changes' => $request->all(),
+        ]);
+
         return redirect()->route('patients.index')
             ->with('success', 'Пациент успешно обновлён');
     }
 
     public function destroy(Patient $patient)
     {
+        LogHelper::userAction('Удалён пациент', [
+            'patient_id' => $patient->id,
+            'patient' => $patient->full_name ?? null,
+        ]);
         $patient->delete();
 
         return redirect()->route('patients.index')
