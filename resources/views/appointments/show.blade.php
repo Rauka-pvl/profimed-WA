@@ -159,24 +159,26 @@
         </div>
 
         <!-- Действия -->
-        <div class="card mt-3">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">
-                    <i class="bi bi-gear"></i> Действия
-                </h6>
+        @if (Auth::user()->role == 1)
+            <div class="card mt-3">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-gear"></i> Действия
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST"
+                        action="{{ route('appointments.destroy', $appointment) }}"
+                        onsubmit="return confirm('Вы уверены, что хотите удалить этот приём?')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="bi bi-trash"></i> Удалить приём
+                        </button>
+                    </form>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST"
-                      action="{{ route('appointments.destroy', $appointment) }}"
-                      onsubmit="return confirm('Вы уверены, что хотите удалить этот приём?')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger w-100">
-                        <i class="bi bi-trash"></i> Удалить приём
-                    </button>
-                </form>
-            </div>
-        </div>
+        @endif
     </div>
 </div>
 @endsection

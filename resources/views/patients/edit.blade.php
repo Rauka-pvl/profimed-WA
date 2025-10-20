@@ -55,17 +55,19 @@
                     </div>
                 </form>
 
-                <hr class="my-4">
+                @if (Auth::user()->role == 1)
+                    <hr class="my-4">
 
-                <form method="POST"
-                      action="{{ route('patients.destroy', $patient) }}"
-                      onsubmit="return confirm('Удалить пациента? Все связанные приёмы также будут удалены!')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger w-100">
-                        <i class="bi bi-trash"></i> Удалить пациента
-                    </button>
-                </form>
+                    <form method="POST"
+                        action="{{ route('patients.destroy', $patient) }}"
+                        onsubmit="return confirm('Удалить пациента? Все связанные приёмы также будут удалены!')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="bi bi-trash"></i> Удалить пациента
+                        </button>
+                    </form>
+                @endif
             </div>
         </div>
     </div>

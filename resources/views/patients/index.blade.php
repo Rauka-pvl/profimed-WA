@@ -84,18 +84,19 @@
                                            title="Редактировать">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-
-                                        <form method="POST"
-                                              action="{{ route('patients.destroy', $patient) }}"
-                                              onsubmit="return confirm('Удалить пациента? Все связанные приёмы также будут удалены!')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                    class="btn btn-danger"
-                                                    title="Удалить">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
+                                        @if (Auth::user()->role == 1)
+                                            <form method="POST"
+                                                action="{{ route('patients.destroy', $patient) }}"
+                                                onsubmit="return confirm('Удалить пациента? Все связанные приёмы также будут удалены!')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                        class="btn btn-danger"
+                                                        title="Удалить">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

@@ -14,11 +14,14 @@ class AppointmentController extends Controller
         // Поиск
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->whereHas('patient', function ($q) use ($search) {
-                $q->where('full_name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
-            })->orWhereHas('doctor', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('patient', function ($q) use ($search) {
+                    $q->where('full_name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                })
+                    ->orWhereHas('doctor', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -32,11 +35,31 @@ class AppointmentController extends Controller
             $query->where('status', $request->status);
         }
 
-        $appointments = $query->orderBy('date', 'desc')
-            ->orderBy('time', 'desc')
-            ->paginate(20);
+        // ✅ Сортировка
+        $sortable = ['date', 'time', 'status']; // поля из appointments
+        $sortField = $request->get('sort_by', 'date');
+        $sortDir = $request->get('sort_dir', 'desc');
 
-        return view('appointments.index', compact('appointments'));
+        if (!in_array($sortField, $sortable)) {
+            // Проверяем поля через отношения
+            if ($sortField === 'doctor') {
+                $query->join('doctors', 'appointments.doctor_id', '=', 'doctors.id')
+                    ->select('appointments.*', 'doctors.name as doctor_name')
+                    ->orderBy('doctor_name', $sortDir);
+            } elseif ($sortField === 'patient') {
+                $query->join('patients', 'appointments.patient_id', '=', 'patients.id')
+                    ->select('appointments.*', 'patients.full_name as patient_name')
+                    ->orderBy('patient_name', $sortDir);
+            } else {
+                $query->orderBy('date', 'desc')->orderBy('time', 'desc');
+            }
+        } else {
+            $query->orderBy($sortField, $sortDir);
+        }
+
+        $appointments = $query->paginate(20)->appends($request->query());
+
+        return view('appointments.index', compact('appointments', 'sortField', 'sortDir'));
     }
 
     public function show(Appointment $appointment)

@@ -27,81 +27,81 @@ class PdfParserService
     public function parse(string $filePath)
     {
         $pdf = $this->parser->parseFile($filePath);
-        $text = $pdf->getText();
+        $text = preg_replace('/\s+/', ' ', $pdf->getText()); // нормализуем пробелы
 
-        // --- Разделяем по врачам ---
+        // Разделяем по врачам (ищем дату + имя врача)
         $blocks = preg_split(
-            '/(?=\d{2}\.\d{2}\.\д{4}\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+)/u',
+            '/(?=\d{2}\.\d{2}\.\d{4}\s+[А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+\s+[А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+)/u',
             $text,
             -1,
             PREG_SPLIT_NO_EMPTY
         );
 
         foreach ($blocks as $block) {
-
-            // --- Ищем дату и врача ---
-            if (
-                !preg_match(
-                    '/(\d{2}\.\д{2}\.\д{4})\s+([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+(?:\s+[А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][а-яёa-z]+){0,2})/u',
-                    $block,
-                    $m
-                )
-            ) {
+            if (!preg_match('/(\d{2}\.\d{2}\.\d{4})\s+([А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+\s+[А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+)/u', $block, $m)) {
                 continue;
             }
 
             $date = date('Y-m-d', strtotime(str_replace('.', '-', $m[1])));
-            $doctorName = $this->getShortName(trim($m[2]));
+            $doctorName = $this->cleanName($m[2]);
             $doctor = Doctor::firstOrCreate(['name' => $doctorName]);
 
-            // --- Ищем приёмы ---
+            // Парсим приёмы
             preg_match_all(
-                '/(\d{2}:\д{2})\s*-\s*(\д{2}:\д{2})\s*(.*?)\((.*?)\)\s*([А-ЯЁA-ZЁӘІҢҒҮҰҚӨҺ][^+]+)\+?\s*([+]?\д[\д\s\-()]{7,})?\s*(.+?)(?=(?:\д{2}:\д{2}\s*-\s*\д{2}:\д{2}|Всего приемов|$))/su',
+                '/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2}).*?\(([^)]+)\)\s*([А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][^+]+)\+?([\d\s\-\(\)+]*)\s*(.+?)(?=(?:\d{2}:\d{2}\s*-\s*\d{2}:\d{2}|Всего приемов|$))/su',
                 $block,
                 $matches,
                 PREG_SET_ORDER
             );
 
             foreach ($matches as $m) {
-
                 $start = trim($m[1]);
                 $end = trim($m[2]);
                 $time = "{$start} - {$end}";
+                $cabinet = trim($m[3]);
+                $patientName = $this->cleanName($m[4]);
 
-                $cabinet = trim($m[4] ?? '');
-                $patientName = $this->getShortName(trim(preg_replace("/\s+/", ' ', $m[5])));
+                // --- Извлекаем все телефоны ---
+                $rawBlock = preg_replace('/(\d)(\d{2}:\d{2})/', '$1 $2', $m[0]); // вставляем пробел перед временем
+                preg_match_all('/(\+?\d[\d\s\-()]{7,})/u', $rawBlock, $phones);
+
+                $phones = collect($phones[1] ?? [])
+                    ->map(function ($p) {
+                        $p = preg_replace('/[^\d+]/', '', $p); // чистим всё, кроме цифр и +
+                        if (str_starts_with($p, '8')) {
+                            $p = '+7' . substr($p, 1);
+                        } elseif (!str_starts_with($p, '+')) {
+                            $p = '+' . $p;
+                        }
+                        return strlen($p) >= 10 ? $p : null;
+                    })
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->toArray();
+
+                $allPhones = count($phones) ? implode(', ', $phones) : null;
+                $primaryPhone = $phones[0] ?? null;
+
+                $service = trim($m[6]);
 
                 if (!$patientName) {
                     $this->stats['skipped']++;
                     continue;
                 }
 
-                // --- Извлекаем все телефоны ---
-                preg_match_all('/(\+?\д[\д\s\-()]{7,})/u', $m[0], $phones);
-                $phones = array_map(fn($p) => preg_replace('/\D+/', '', $p), $phones[1] ?? []);
-                $phones = array_filter(array_unique($phones)); // уникальные и не пустые
-
-                $primaryPhone = $phones[0] ?? null;
-                $allPhones = implode(', ', $phones);
-
-                $service = trim(preg_replace("/\s+/", ' ', $m[7]));
-
-                // --- Пациент ---
                 $patient = Patient::firstOrCreate(
                     ['full_name' => $patientName],
-                    ['phone' => $primaryPhone ?? '']
+                    ['phone' => $allPhones ?? null]
                 );
 
-                // обновляем телефон, если пустой
-                if (!$patient->phone && $primaryPhone) {
-                    $patient->update(['phone' => $primaryPhone]);
+                if (!$patient->phone && !empty($allPhones)) {
+                    $patient->update(['phone' => $allPhones]);
                 }
 
-                // --- Определяем статус ---
                 $isCancelled = ($start === '00:00' || $end === '00:00');
                 $status = $isCancelled ? 'cancelled' : 'scheduled';
 
-                // --- Проверяем запись ---
                 $appointment = Appointment::where([
                     ['doctor_id', $doctor->id],
                     ['patient_id', $patient->id],
@@ -114,56 +114,33 @@ class PdfParserService
                         'service' => $service ?: 'Не указано',
                         'cabinet' => $cabinet ?: '',
                         'status' => $status,
-                        'phones' => $allPhones, // сохраняем все номера
+                        'phones' => $allPhones,
                     ]);
-
                     $this->stats['updated']++;
-
-                    if ($isCancelled) {
-                        $this->stats['cancelled']++;
-                        Log::info("❌ Отменён: {$doctorName} — {$patientName} — {$date} {$time} — Телефоны: {$allPhones}");
-                    } else {
-                        Log::info("🔁 Обновлено: {$doctorName} — {$patientName} — {$date} {$time} — Телефоны: {$allPhones}");
-                    }
                 } else {
                     Appointment::create([
                         'doctor_id' => $doctor->id,
                         'patient_id' => $patient->id,
-                        'service' => $service ?: 'Не указано',
-                        'cabinet' => $cabinet ?: '',
                         'date' => $date,
                         'time' => $time,
+                        'service' => $service ?: 'Не указано',
+                        'cabinet' => $cabinet ?: '',
                         'status' => $status,
                         'phones' => $allPhones,
                     ]);
-
-                    if ($isCancelled) {
-                        $this->stats['cancelled']++;
-                        Log::info("❌ Отменён: {$doctorName} — {$patientName} — {$date} {$time} — Телефоны: {$allPhones}");
-                    } else {
-                        $this->stats['added']++;
-                        Log::info("➕ Добавлено: {$doctorName} — {$patientName} — {$date} {$time} — Телефоны: {$allPhones}");
-                    }
+                    $isCancelled ? $this->stats['cancelled']++ : $this->stats['added']++;
                 }
             }
         }
 
-        Log::info("📋 Импорт завершён. Добавлено: {$this->stats['added']}, Обновлено: {$this->stats['updated']}, Отменено: {$this->stats['cancelled']}, Пропущено: {$this->stats['skipped']}.");
-
         return $this->stats;
     }
 
-    /**
-     * Берёт только фамилию и имя (без отчества)
-     */
-    protected function getShortName(string $fullName): string
+    protected function cleanName(string $text): string
     {
-        $parts = preg_split('/\s+/', trim($fullName));
+        $text = preg_replace('/\b(Время|врач|каб\.?|кб\.?)\b/iu', '', $text);
+        $text = trim(preg_replace('/[^А-Яа-яЁёӘІҢҒҮҰҚӨҺ\s-]/u', '', $text));
+        $parts = preg_split('/\s+/', $text);
         return implode(' ', array_slice($parts, 0, 2));
-    }
-
-    public function getStats(): array
-    {
-        return $this->stats;
     }
 }
