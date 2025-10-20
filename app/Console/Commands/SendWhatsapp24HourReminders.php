@@ -7,10 +7,10 @@ use App\Services\GreenApiService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
-class SendWhatsappReminders extends Command
+class SendWhatsapp24HourReminders extends Command
 {
-    protected $signature = 'reminders:send';
-    protected $description = 'Отправка WhatsApp напоминаний о приёмах (за 24 часа и за 3 часа)';
+    protected $signature = 'reminders24:send';
+    protected $description = 'Отправка WhatsApp напоминаний о приёмах (за 24 часа)';
 
     protected $greenApi;
 
@@ -25,7 +25,7 @@ class SendWhatsappReminders extends Command
         $this->info('🚀 Начинаем отправку напоминаний...');
 
         // Напоминания за 24 часа
-        // $this->send24HourReminders();
+        $this->send24HourReminders();
 
         // Напоминания за 3 часа
         $this->send3HourReminders();

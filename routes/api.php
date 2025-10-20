@@ -8,3 +8,6 @@ Route::post('/webhook/whatsapp', [WebhookController::class, 'handleIncoming'])->
 Route::get('/send-reminders', function () {
     return Artisan::call('reminders:send');
 });
+Route::get('/send-reminders24', function () {
+    return Artisan::call('reminders24:send');
+});
