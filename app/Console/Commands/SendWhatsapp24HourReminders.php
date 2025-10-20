@@ -52,36 +52,27 @@ class SendWhatsapp24HourReminders extends Command
         foreach ($appointments as $appointment) {
             $patient = $appointment->patient;
             $doctor = $appointment->doctor;
-
             $dateFormatted = Carbon::parse($appointment->date)->format('d.m.Y');
 
-            $phones = $patient->phone ?? null;
+            $phones = $patient->phone ? explode(',', $patient->phone) : []; // ← разбиваем строку по запятым
+            $phones = array_map('trim', $phones); // убираем пробелы
 
             $success = false;
 
-            if ($phones) {
-                if (count($phones) > 0) {
-                    foreach ($phones as $phone) {
-                        $success = $this->greenApi->send24HourReminder(
-                            $phone,
-                            $patient->full_name,
-                            $doctor->name,
-                            $dateFormatted,
-                            $appointment->time,
-                            $appointment->cabinet
-                        );
-                    }
-                }
-                // $success = $this->greenApi->send24HourReminder(
-                //     $phones,
-                //     $patient->full_name,
-                //     $doctor->name,
-                //     $dateFormatted,
-                //     $appointment->time,
-                //     $appointment->cabinet
-                // );
-            }
+            if (count($phones) > 0) {
+                foreach ($phones as $phone) {
+                    if (!$phone) continue;
 
+                    $success = $this->greenApi->send24HourReminder(
+                        $phone,
+                        $patient->full_name,
+                        $doctor->name,
+                        $dateFormatted,
+                        $appointment->time,
+                        $appointment->cabinet
+                    );
+                }
+            }
 
             if ($success) {
                 $appointment->update(['reminder_24h_sent' => true]);
