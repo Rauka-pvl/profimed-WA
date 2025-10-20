@@ -57,14 +57,31 @@ class SendWhatsapp24HourReminders extends Command
 
             $phones = $patient->phone ?? null;
 
-            $success = $this->greenApi->send24HourReminder(
-                $phones,
-                $patient->full_name,
-                $doctor->name,
-                $dateFormatted,
-                $appointment->time,
-                $appointment->cabinet
-            );
+            $success = false;
+
+            if ($phones) {
+                if (count($phones) > 0) {
+                    foreach ($phones as $phone) {
+                        $success = $this->greenApi->send24HourReminder(
+                            $phone,
+                            $patient->full_name,
+                            $doctor->name,
+                            $dateFormatted,
+                            $appointment->time,
+                            $appointment->cabinet
+                        );
+                    }
+                }
+                // $success = $this->greenApi->send24HourReminder(
+                //     $phones,
+                //     $patient->full_name,
+                //     $doctor->name,
+                //     $dateFormatted,
+                //     $appointment->time,
+                //     $appointment->cabinet
+                // );
+            }
+
 
             if ($success) {
                 $appointment->update(['reminder_24h_sent' => true]);
