@@ -55,8 +55,10 @@ class SendWhatsapp24HourReminders extends Command
 
             $dateFormatted = Carbon::parse($appointment->date)->format('d.m.Y');
 
+            $phones = $patient->phone ?? null;
+
             $success = $this->greenApi->send24HourReminder(
-                $patient->phone,
+                $phones,
                 $patient->full_name,
                 $doctor->name,
                 $dateFormatted,
