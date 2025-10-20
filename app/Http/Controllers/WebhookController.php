@@ -75,7 +75,7 @@ class WebhookController extends Controller
         $phone = str_replace('@c.us', '', $chatId);
 
         // Ищем пациента по номеру телефона
-        $patient = Patient::where('phone', $phone)->first();
+        $patient = Patient::where('phone', "%+. $phone%")->first();
         if (!$patient) {
             Log::info("Пациент не найден для номера: {$phone}");
             return;
