@@ -41,7 +41,7 @@ class SendWhatsappReminders extends Command
 
         $appointments = Appointment::with(['doctor', 'patient'])
             ->where('date', $tomorrow)
-            ->where('status', 'scheduled')
+            ->whereIn('status', ['scheduled', 'confirmed'])
             ->where('reminder_24h_sent', false)
             ->whereHas('patient', function ($query) {
                 $query->whereNotNull('phone');
@@ -85,7 +85,7 @@ class SendWhatsappReminders extends Command
 
         $appointments = Appointment::with(['doctor', 'patient'])
             ->where('date', $now->format('Y-m-d'))
-            ->where('status', 'scheduled')
+            ->whereIn('status', ['scheduled', 'confirmed'])
             ->where('reminder_3h_sent', false)
             ->whereHas('patient', function ($query) {
                 $query->whereNotNull('phone');
