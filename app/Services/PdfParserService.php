@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\Appointment;
+use Illuminate\Support\Str;
 use Smalot\PdfParser\Parser;
 use Illuminate\Support\Facades\Log;
 
@@ -101,6 +102,11 @@ class PdfParserService
 
                 $isCancelled = ($start === '00:00' || $end === '00:00');
                 $status = $isCancelled ? 'cancelled' : 'scheduled';
+
+                if (Str::contains(mb_strtolower($service), ['на дому', 'выезд'])) {
+                    $status = 'cancelled';
+                    $this->stats['skipped']++;
+                }
 
                 $appointment = Appointment::where([
                     ['doctor_id', $doctor->id],
