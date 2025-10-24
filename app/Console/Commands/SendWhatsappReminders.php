@@ -55,14 +55,25 @@ class SendWhatsappReminders extends Command
 
             $dateFormatted = Carbon::parse($appointment->date)->format('d.m.Y');
 
-            $success = $this->greenApi->send24HourReminder(
-                $patient->phone,
-                $patient->full_name,
-                $doctor->name,
-                $dateFormatted,
-                $appointment->time,
-                $appointment->cabinet
-            );
+            $phones = $patient->phone ? explode(',', $patient->phone) : []; // ← разбиваем строку по запятым
+            $phones = array_map('trim', $phones); // убираем пробелы
+
+            $success = false;
+
+            if (count($phones) > 0) {
+                foreach ($phones as $phone) {
+                    if (!$phone) continue;
+
+                    $success = $this->greenApi->send24HourReminder(
+                        $phone,
+                        $patient->full_name,
+                        $doctor->name,
+                        $dateFormatted,
+                        $appointment->time,
+                        $appointment->cabinet
+                    );
+                }
+            }
 
             if ($success) {
                 $appointment->update(['reminder_24h_sent' => true]);
@@ -103,12 +114,23 @@ class SendWhatsappReminders extends Command
                 $patient = $appointment->patient;
                 $doctor = $appointment->doctor;
 
-                $success = $this->greenApi->send3HourReminder(
-                    $patient->phone,
-                    $doctor->name,
-                    $appointment->time,
-                    $appointment->cabinet
-                );
+                $phones = $patient->phone ? explode(',', $patient->phone) : []; // ← разбиваем строку по запятым
+                $phones = array_map('trim', $phones); // убираем пробелы
+
+                $success = false;
+
+                if (count($phones) > 0) {
+                    foreach ($phones as $phone) {
+                        if (!$phone) continue;
+
+                        $success = $this->greenApi->send3HourReminder(
+                            $phone,
+                            $doctor->name,
+                            $appointment->time,
+                            $appointment->cabinet
+                        );
+                    }
+                }
 
                 if ($success) {
                     $appointment->update(['reminder_3h_sent' => true]);
