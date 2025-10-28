@@ -95,7 +95,7 @@ class WebhookController extends Controller
         }
 
         // Обрабатываем ответ ДА/НЕТ
-        if (str_contains($messageText, 'ДА') || str_contains($messageText, 'ИӘ') || str_contains($messageText, 'YES')) {
+        if (str_contains($messageText, 'ДА') || str_contains($messageText, 'ИӘ') || str_contains($messageText, 'YES') || str_contains($messageText, '✅')) {
             $appointment->update(['status' => 'confirmed']);
             Log::info("Приём подтверждён: {$patient->full_name} - {$appointment->date} {$appointment->time}");
 
@@ -104,7 +104,7 @@ class WebhookController extends Controller
                 $chatId,
                 "✅ Спасибо! Ваш приём подтверждён. Ждём вас!\n✅ Рақмет! Сіздің қабылдауыңыз расталды. Сізді күтеміз!"
             );
-        } elseif (str_contains($messageText, 'НЕТ') || str_contains($messageText, 'ЖОҚ') || str_contains($messageText, 'ЖОК') || str_contains($messageText, 'NO')) {
+        } elseif (str_contains($messageText, 'НЕТ') || str_contains($messageText, 'ЖОҚ') || str_contains($messageText, 'ЖОК') || str_contains($messageText, 'NO') || str_contains($messageText, '❌')) {
             $appointment->update(['status' => 'cancelled']);
             Log::info("Приём отменён: {$patient->full_name} - {$appointment->date} {$appointment->time}");
 
