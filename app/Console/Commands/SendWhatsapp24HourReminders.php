@@ -69,7 +69,8 @@ class SendWhatsapp24HourReminders extends Command
                         $doctor->name,
                         $dateFormatted,
                         $appointment->time,
-                        $appointment->cabinet
+                        $appointment->cabinet,
+                        $appointment->service
                     );
                 }
             }
