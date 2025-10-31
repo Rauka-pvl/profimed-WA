@@ -28,7 +28,7 @@ class SendWhatsapp24HourReminders extends Command
         $this->send24HourReminders();
 
         // Напоминания за 3 часа
-        $this->send3HourReminders();
+        // $this->send3HourReminders();
 
         $this->info('✅ Отправка завершена!');
     }
