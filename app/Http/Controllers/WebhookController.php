@@ -95,23 +95,26 @@ class WebhookController extends Controller
         }
 
         // Обрабатываем ответ ДА/НЕТ
-        if (str_contains($messageText, 'ДА') || str_contains($messageText, 'ИӘ') || str_contains($messageText, 'YES') || str_contains($messageText, '✅')) {
+        // if (str_contains($messageText, 'ДА') || str_contains($messageText, 'ИӘ') || str_contains($messageText, 'YES') || str_contains($messageText, '✅')) {
+        if ($messageText == 1) {
             $appointment->update(['status' => 'confirmed']);
             Log::info("Приём подтверждён: {$patient->full_name} - {$appointment->date} {$appointment->time}");
 
             // Отправляем подтверждение
             $this->greenApi->sendMessage(
                 $chatId,
-                "✅ Спасибо! Ваш приём подтверждён. Ждём вас!\n✅ Рақмет! Сіздің қабылдауыңыз расталды. Сізді күтеміз!"
+                "✅ Рақмет! Сіздің қабылдауыңыз расталды. Сізді күтеміз!\n✅ Спасибо! Ваш приём подтверждён. Ждём вас!"
             );
-        } elseif (str_contains($messageText, 'НЕТ') || str_contains($messageText, 'ЖОҚ') || str_contains($messageText, 'ЖОК') || str_contains($messageText, 'NO') || str_contains($messageText, '❌')) {
+        }
+        // elseif (str_contains($messageText, 'НЕТ') || str_contains($messageText, 'ЖОҚ') || str_contains($messageText, 'ЖОК') || str_contains($messageText, 'NO') || str_contains($messageText, '❌')) {
+        elseif ($messageText == 2) {
             $appointment->update(['status' => 'cancelled']);
             Log::info("Приём отменён: {$patient->full_name} - {$appointment->date} {$appointment->time}");
 
             // Отправляем подтверждение отмены
             $this->greenApi->sendMessage(
                 $phone,
-                "❌ Ваш приём отменён. При необходимости запишитесь на другое время. Спасибо!\n❌ Сіздің қабылдауыңыз тоқтатылды. Қажет болса, өзіңізге ыңғайлы басқа уақытқа жазылыңыз. Рақмет!"
+                "❌ Сіздің қабылдауыңыз тоқтатылды. Қажет болса, өзіңізге ыңғайлы басқа уақытқа жазылыңыз. Рақмет!\n❌ Ваш приём отменён. При необходимости запишитесь на другое время. Спасибо!"
             );
         }
 
