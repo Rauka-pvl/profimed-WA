@@ -14,7 +14,7 @@ class AppointmentController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        dump($user);
+        // dump($user);
         $type = $request->query('type', 'upcoming'); // upcoming или past
 
         $query = Appointment::where('patient_id', $user->id)
