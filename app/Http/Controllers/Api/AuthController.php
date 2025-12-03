@@ -16,7 +16,7 @@ class AuthController extends Controller
     public function sendCode(Request $request)
     {
         $request->validate([
-            'phone' => 'required|string|regex:/^77\d{9}$/',
+            'phone' => 'required|string|regex:/^7\d{9}$/',
         ]);
 
         $phone = $request->phone;
