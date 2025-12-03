@@ -34,7 +34,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Код отправлен',
-            // 'code' => $code, // Только для тестирования!
+            'code' => $code, // Только для тестирования!
         ]);
     }
 
