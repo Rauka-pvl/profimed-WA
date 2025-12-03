@@ -14,17 +14,18 @@ class AppointmentController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        dump($user);
         $type = $request->query('type', 'upcoming'); // upcoming или past
 
-        $query = Appointment::where('user_id', $user->id)
+        $query = Appointment::where('patient_id', $user->id)
             ->with(['doctor', 'clinic']);
 
         if ($type === 'upcoming') {
-            $query->where('date_time', '>=', now())
-                ->orderBy('date_time', 'asc');
+            $query->where('date', '>=', now()->format('Y-m-d'))
+                ->orderBy('date', 'asc');
         } else {
-            $query->where('date_time', '<', now())
-                ->orderBy('date_time', 'desc');
+            $query->where('date', '<', now()->format('Y-m-d'))
+                ->orderBy('date', 'desc');
         }
 
         $appointments = $query->get()->map(function ($appointment) {
