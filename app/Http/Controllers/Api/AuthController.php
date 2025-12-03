@@ -57,11 +57,11 @@ class AuthController extends Controller
                 'id' => $patient->id,
                 'phone' => $patient->phone,
                 'full_name' => $patient->full_name,
-                'first_name' => $patient->first_name,
-                'last_name' => $patient->last_name,
-                'middle_name' => $patient->middle_name,
-                'date_of_birth' => $patient->date_of_birth,
-                'role' => $patient->role,
+                // 'first_name' => $patient->first_name,
+                // 'last_name' => $patient->last_name,
+                // 'middle_name' => $patient->middle_name,
+                // 'date_of_birth' => $patient->date_of_birth,
+                // 'role' => $patient->role,
             ],
         ]);
     }
