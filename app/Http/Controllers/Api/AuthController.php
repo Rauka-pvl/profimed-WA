@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -64,7 +65,7 @@ class AuthController extends Controller
         cache()->forget("sms_code_{$phone}");
 
         // Ищем или создаём пользователя
-        $user = User::firstOrCreate(
+        $user = Patient::firstOrCreate(
             ['phone' => $phone],
             [
                 'full_name' => 'Test User'
@@ -80,13 +81,23 @@ class AuthController extends Controller
             'user' => [
                 'id' => $user->id,
                 'phone' => $user->phone,
-                'first_name' => $user->first_name,
-                'last_name' => $user->last_name,
-                'middle_name' => $user->middle_name,
-                'date_of_birth' => $user->date_of_birth,
-                'role' => $user->role,
+                'full_name' => $user->full_name,
             ],
         ]);
+
+        // return response()->json([
+        //     'success' => true,
+        //     'token' => $token,
+        //     'user' => [
+        //         'id' => $user->id,
+        //         'phone' => $user->phone,
+        //         'first_name' => $user->first_name,
+        //         'last_name' => $user->last_name,
+        //         'middle_name' => $user->middle_name,
+        //         'date_of_birth' => $user->date_of_birth,
+        //         'role' => $user->role,
+        //     ],
+        // ]);
     }
 
     /**
