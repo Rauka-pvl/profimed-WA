@@ -7,12 +7,33 @@ use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PdfUploadController;
 use App\Http\Controllers\WebhookController;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 
 // Публичные маршруты
 Route::get('/', function () {
     return redirect('/login');
 });
+
+Route::get('/verify', function () {
+    $response = Http::withHeaders([
+        'Accept' => 'application/json',
+    ])->post('https://example.com/v1/account/verify', [
+        'code' => 'your-registration-code-received-by-sms-or-voice-call',
+    ]);
+
+    if ($response->successful()) {
+        // Если запрос успешный (200–299)
+        return $response->json();
+    } else {
+        // Если ошибка (например, 400 или 500)
+        logger()->error('Ошибка верификации', [
+            'status' => $response->status(),
+            'body' => $response->body(),
+        ]);
+        abort($response->status(), 'Ошибка верификации');
+    }
+})->name('verify');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
