@@ -32,13 +32,13 @@ class AppointmentController extends Controller
             return [
                 'id' => $appointment->id,
                 'doctor' => $appointment->doctor->name ?? 'Неизвестно',
-                'service' => $appointment->service ?? null,
-                'cabinet' => $appointment->cabinet ?? null,
+                'service' => $appointment->service ?? 'Услуга не указана',
+                'cabinet' => $appointment->cabinet ?? 'Кабинет не указан',
                 'date' => $appointment->date,
                 'time' => $appointment->time,
                 'status' => $appointment->status,
                 'created_at' => $appointment->created_at,
-                'clinic' => $appointment->clinic->name ?? null,
+                'clinic' => $appointment->clinic->name ?? 'Клиника не указана',
             ];
         });
 
