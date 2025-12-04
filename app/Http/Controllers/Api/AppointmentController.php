@@ -14,11 +14,11 @@ class AppointmentController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        // dump($user);
+        dump($user);
         $type = $request->query('type', 'upcoming'); // upcoming или past
 
         $query = Appointment::where('patient_id', $user->id)
-            ->with(['doctor', 'clinic']);
+            ->with(['patient', 'doctor']);
 
         if ($type === 'upcoming') {
             $query->where('date', '>=', now()->format('Y-m-d'))
@@ -59,7 +59,7 @@ class AppointmentController extends Controller
 
         $appointment = Appointment::where('id', $id)
             ->where('user_id', $user->id)
-            ->with(['doctor', 'clinic'])
+            ->with(['doctor', 'patient'])
             ->firstOrFail();
 
         return response()->json([
