@@ -31,16 +31,14 @@ class AppointmentController extends Controller
         $appointments = $query->get()->map(function ($appointment) {
             return [
                 'id' => $appointment->id,
-                'date_time' => $appointment->date_time,
-                'doctor_name' => $appointment->doctor->full_name ?? 'Неизвестно',
-                'doctor_specialty' => $appointment->doctor->specialty ?? null,
-                'clinic' => $appointment->clinic->name ?? null,
-                'room' => $appointment->room,
+                'doctor' => $appointment->doctor->name ?? 'Неизвестно',
+                'service' => $appointment->service ?? null,
+                'cabinet' => $appointment->cabinet ?? null,
+                'date' => $appointment->date,
+                'time' => $appointment->time,
                 'status' => $appointment->status,
-                'comment' => $appointment->comment,
                 'created_at' => $appointment->created_at,
-                'confirmed_at' => $appointment->confirmed_at,
-                'source' => $appointment->source,
+                'clinic' => $appointment->clinic->name ?? null,
             ];
         });
 
