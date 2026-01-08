@@ -28,7 +28,7 @@ class AuthController extends Controller
     public function verifyCode(Request $request)
     {
         $request->validate([
-            'phone' => 'required|string|regex:/^7\d{9}$/',
+            'phone' => 'required|string|regex:/^7\d{10}$/',
             'code' => 'required|string|size:4',
         ]);
 
