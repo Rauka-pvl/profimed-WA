@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Patient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -19,11 +20,9 @@ class AuthController extends Controller
         $code = rand(1000, 9999);
         cache()->put("sms_code_{$phone}", $code, now()->addMinutes(5));
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Код отправлен',
-            'code' => $code,
-        ]);
+        Log::info('sendCode', ['phone' => $phone, 'code' => $code]);
+
+        return response()->json(['success' => true, 'message' => 'Код отправлен', 'code' => $code]);
     }
 
     public function verifyCode(Request $request)
