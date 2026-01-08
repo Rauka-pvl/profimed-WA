@@ -43,7 +43,7 @@ class AuthController extends Controller
         cache()->forget("sms_code_{$phone}");
 
         $patient = Patient::firstOrCreate(
-            ['phone' => '+7' . $phone],
+            ['phone' => '+' . $phone],
             ['full_name' => 'Test Patient']
         );
 
