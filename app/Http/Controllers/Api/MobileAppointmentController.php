@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class MobileAppointmentController extends Controller
 {
@@ -14,6 +15,7 @@ class MobileAppointmentController extends Controller
     public function index(Request $request)
     {
         $patient = $request->user();
+        Log::info('index', ['patient' => $patient]);
         $type = $request->query('type', 'upcoming'); // upcoming или past
 
         $query = Appointment::where('patient_id', $patient->id)
@@ -174,4 +176,3 @@ class MobileAppointmentController extends Controller
         ]);
     }
 }
-
