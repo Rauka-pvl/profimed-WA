@@ -22,7 +22,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/send-code', [AuthController::class, 'sendCode']);
     Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 });
-
+Route::get('/appointments', [MobileAppointmentController::class, 'index']);
 // Защищённые роуты (требуют токен)
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -39,7 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/patient/profile', [PatientController::class, 'update']);
 
         // Записи (appointments)
-        Route::get('/appointments', [MobileAppointmentController::class, 'index']);
+        // Route::get('/appointments', [MobileAppointmentController::class, 'index']);
         Route::get('/appointments/{id}', [MobileAppointmentController::class, 'show']);
         Route::post('/appointments/{id}/confirm', [MobileAppointmentController::class, 'confirm']);
         Route::post('/appointments/{id}/decline', [MobileAppointmentController::class, 'decline']);
