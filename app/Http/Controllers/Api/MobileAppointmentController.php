@@ -43,6 +43,8 @@ class MobileAppointmentController extends Controller
                 'date' => $appointment->date->format('Y-m-d'),
                 'time' => $appointment->time,
                 'status' => $appointment->status,
+                'reminder_24h_sent' => $appointment->reminder_24h_sent,
+                'reminder_3h_sent' => $appointment->reminder_3h_sent,
                 'created_at' => $appointment->created_at->format('Y-m-d H:i:s'),
                 'updated_at' => $appointment->updated_at->format('Y-m-d H:i:s'),
             ];
