@@ -23,7 +23,7 @@ class AuthController extends Controller
 
         // Отправка SMS через Mobizon API
         $apiKey = 'kz091c4ce521d2ad9e4b85a8769df852b0266cb8c602c4316539e1611d4f6d04452819';
-        $message = "eQabylau\n\nСіздің авторизация кодыңыз: {$code}\nКод 5 минут ішінде жарамды.\n\nВаш код авторизации: {$code}\nКод действителен 5 минут.";
+        $message = "eQabylau\n\nВаш код авторизации: {$code}\nКод действителен 5 минут.";
 
         $url = "https://api.mobizon.kz/service/message/sendsmsmessage";
 
