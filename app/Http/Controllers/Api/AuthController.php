@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Patient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -17,12 +18,50 @@ class AuthController extends Controller
         ]);
 
         $phone = $request->phone;
-        $code = rand(1000, 9999);
+        $code = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
         cache()->put("sms_code_{$phone}", $code, now()->addMinutes(5));
+
+        // Отправка SMS через Mobizon API
+        $apiKey = 'kz091c4ce521d2ad9e4b85a8769df852b0266cb8c602c4316539e1611d4f6d04452819';
+        $message = "🏥 eQabylau\n\nСіздің авторизация кодыңыз: {$code}\nКод 5 минут ішінде жарамды.\n\nВаш код авторизации: {$code}\nКод действителен 5 минут.";
+
+        $url = "https://api.mobizon.kz/service/message/sendsmsmessage";
+
+        try {
+            $response = Http::get($url, [
+                'recipient' => $phone,
+                'text' => $message,
+                'apiKey' => $apiKey,
+            ]);
+
+            if ($response->successful()) {
+                Log::info('SMS отправлено через Mobizon', [
+                    'phone' => $phone,
+                    'code' => $code,
+                    'response' => $response->json(),
+                ]);
+            } else {
+                Log::error('Ошибка отправки SMS через Mobizon', [
+                    'phone' => $phone,
+                    'code' => $code,
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Исключение при отправке SMS', [
+                'phone' => $phone,
+                'code' => $code,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         Log::info('sendCode', ['phone' => $phone, 'code' => $code]);
 
-        return response()->json(['success' => true, 'message' => 'Код отправлен', 'code' => $code]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Код отправлен',
+        ]);
     }
 
     public function verifyCode(Request $request)
