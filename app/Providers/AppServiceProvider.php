@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Appointment;
+use App\Observers\AppointmentObserver;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,5 +23,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrap();
+        
+        // Регистрируем Observer для автоматической отправки FCM уведомлений
+        Appointment::observe(AppointmentObserver::class);
     }
 }
