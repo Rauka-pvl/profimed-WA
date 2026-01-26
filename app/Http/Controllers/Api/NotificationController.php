@@ -60,15 +60,17 @@ class NotificationController extends Controller
         ]);
     }
 
-    public function NotifSendStatus24(Appointment $appointment)
+    public function NotifSendStatus24($id)
     {
+        $appointment = Appointment::find($id);
         $appointment->reminder_24h_sent = true;
         $appointment->save();
         return response()->json([true]);
     }
 
-    public function NotifSendStatus3(Appointment $appointment)
+    public function NotifSendStatus3($id)
     {
+        $appointment = Appointment::find($id);
         $appointment->reminder_3h_sent = true;
         $appointment->save();
         return response()->json([true]);
