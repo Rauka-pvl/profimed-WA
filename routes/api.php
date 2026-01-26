@@ -26,9 +26,6 @@ Route::prefix('auth')->group(function () {
 // Защищённые роуты (требуют токен)
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Токен устройства
-    Route::post('/device-token/update', [AuthController::class, 'updateDeviceToken']);
-
     // Выход
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 

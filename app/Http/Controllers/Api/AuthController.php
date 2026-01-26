@@ -104,23 +104,6 @@ class AuthController extends Controller
         ]);
     }
 
-    public function updateDeviceToken(Request $request)
-    {
-        $request->validate([
-            'device_token' => 'required|string',
-            'device_type' => 'required|in:ios,android',
-        ]);
-
-        $patient = $request->user();
-
-        $patient->deviceTokens()->updateOrCreate(
-            ['device_token' => $request->device_token],
-            ['device_type' => $request->device_type, 'updated_at' => now()]
-        );
-
-        return response()->json(['success' => true, 'message' => 'Токен обновлён']);
-    }
-
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
