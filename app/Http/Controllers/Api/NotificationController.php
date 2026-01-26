@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PatientDeviceToken;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -37,7 +38,7 @@ class NotificationController extends Controller
 
     /**
      * Отправка тестового уведомления
-     * В будущем можно интегрировать с Firebase Cloud Messaging или другим сервисом
+     * Отправляет FCM push-уведомление на все устройства текущего пользователя
      */
     public function send(Request $request)
     {
@@ -47,31 +48,60 @@ class NotificationController extends Controller
         ]);
 
         $patient = $request->user();
-        $deviceTokens = $patient->deviceTokens()->get();
+        $deviceTokens = $patient->deviceTokens()->pluck('device_token')->toArray();
 
-        if ($deviceTokens->isEmpty()) {
+        if (empty($deviceTokens)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Нет зарегистрированных устройств для отправки уведомлений',
             ], 400);
         }
 
-        // TODO: Здесь будет интеграция с FCM или другим push-сервисом
-        // Пока просто логируем
-        Log::info('Push notification request', [
+        $fcmService = app(FcmService::class);
+        
+        $notification = [
+            'title' => $request->title,
+            'body' => $request->body,
+        ];
+
+        // Опциональные данные для уведомления
+        $data = [
+            'type' => 'test_notification',
+            'timestamp' => (string) now()->timestamp,
+        ];
+
+        // Отправляем на все устройства пациента
+        $successCount = 0;
+        $failedCount = 0;
+        
+        foreach ($deviceTokens as $deviceToken) {
+            if ($fcmService->sendToDevice($deviceToken, $notification, $data)) {
+                $successCount++;
+            } else {
+                $failedCount++;
+            }
+        }
+
+        Log::info('Тестовое FCM уведомление отправлено', [
             'patient_id' => $patient->id,
             'title' => $request->title,
             'body' => $request->body,
-            'devices_count' => $deviceTokens->count(),
+            'devices_count' => count($deviceTokens),
+            'success_count' => $successCount,
+            'failed_count' => $failedCount,
         ]);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Уведомление отправлено',
+            'success' => $successCount > 0,
+            'message' => $successCount > 0 
+                ? "Уведомление отправлено на {$successCount} устройств" 
+                : 'Не удалось отправить уведомление',
             'data' => [
                 'title' => $request->title,
                 'body' => $request->body,
-                'devices_count' => $deviceTokens->count(),
+                'devices_count' => count($deviceTokens),
+                'success_count' => $successCount,
+                'failed_count' => $failedCount,
             ],
         ]);
     }
