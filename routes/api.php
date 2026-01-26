@@ -45,6 +45,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/send', [NotificationController::class, 'send']);
         Route::get('/notifications/settings', [NotificationController::class, 'settings']);
+        Route::post('/notifications/send-status-24/{id}', [NotificationController::class, 'NotifSendStatus24']);
+        Route::post('/notifications/send-status-3/{id}', [NotificationController::class, 'NotifSendStatus3']);
     });
 
     // Старые роуты (для обратной совместимости)

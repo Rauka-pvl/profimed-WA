@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -58,5 +59,18 @@ class NotificationController extends Controller
             ],
         ]);
     }
-}
 
+    public function NotifSendStatus24(Appointment $appointment)
+    {
+        $appointment->reminder_24h_sent = true;
+        $appointment->save();
+        return response()->json([true]);
+    }
+
+    public function NotifSendStatus3(Appointment $appointment)
+    {
+        $appointment->reminder_3h_sent = true;
+        $appointment->save();
+        return response()->json([true]);
+    }
+}
