@@ -135,9 +135,8 @@ class AuthController extends Controller
 
         $patient = $request->user();
 
-        $patient->deviceTokens()->updateOrCreate(
-            ['device_token' => $request->device_token],
-            ['device_type' => $request->device_type, 'updated_at' => now()]
+        $patient->deviceTokens()->create(
+            ['device_token' => $request->device_token, 'device_type' => $request->device_type]
         );
 
         return response()->json(['success' => true, 'message' => 'Токен обновлён']);
