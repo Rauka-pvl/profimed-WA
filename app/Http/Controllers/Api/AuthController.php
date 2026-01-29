@@ -127,6 +127,7 @@ class AuthController extends Controller
 
     public function deviceToken(Request $request)
     {
+        Log::info('Device Token', [$request->all()]);
         $request->validate([
             'device_token' => 'required|string',
             'device_type' => 'required|string|in:ios,android',
