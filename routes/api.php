@@ -9,6 +9,21 @@ use App\Http\Controllers\Api\MobileAppointmentController;
 use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\NotificationController;
 
+Route::get('/test', function () {
+    $token = "FCM_DEVICE_TOKEN";
+
+    return app(\App\Services\FirebaseService::class)
+        ->sendNotification(
+            $token,
+            'Привет 👋',
+            'Сообщение из Laravel',
+            [
+                'type' => 'order',
+                'id' => '25'
+            ]
+        );
+});
+
 Route::post('/webhook/whatsapp', [WebhookController::class, 'handleIncoming'])->name('webhook.whatsapp');
 // Route::get('/send-reminders', function () {
 //     return Artisan::call('reminders:send');
