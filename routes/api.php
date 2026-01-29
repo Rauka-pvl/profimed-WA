@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\NotificationController;
 
 Route::get('/test', function () {
-    $token = "FCM_DEVICE_TOKEN";
+    $token = "dkCR9FZOTSeDQihk2NcOZd:APA91bEVX-5LXF8PSoeSUdt9yh52KMjbe2C6cBBG-x15deS7RL3HbHn05VnegIHOoDp4kJAAU5U75leoCbO_BBy4rycT2P8HR-2s8CRaGB7hLLBUwOkFLOI";
 
     return app(\App\Services\FirebaseService::class)
         ->sendNotification(
