@@ -106,7 +106,21 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $patient = $request->user();
+
+        // Если передан device_token — удаляем его из БД для этого пациента
+        if ($request->filled('device_token')) {
+            $request->validate([
+                'device_token' => 'string',
+                'device_type' => 'nullable|string',
+            ]);
+
+            $patient->deviceTokens()
+                ->where('device_token', $request->device_token)
+                ->delete();
+        }
+
+        $patient->currentAccessToken()->delete();
 
         return response()->json(['success' => true, 'message' => 'Вы вышли из системы']);
     }
@@ -114,15 +128,11 @@ class AuthController extends Controller
     public function deviceToken(Request $request)
     {
         $request->validate([
-            'patient_id' => 'required|exists:patients,id',
             'device_token' => 'required|string',
             'device_type' => 'required|string|in:ios,android',
         ]);
 
         $patient = $request->user();
-        if ((int) $request->patient_id !== $patient->id) {
-            throw ValidationException::withMessages(['patient_id' => ['Нельзя обновить токен другого пациента']]);
-        }
 
         $patient->deviceTokens()->updateOrCreate(
             ['device_token' => $request->device_token],
