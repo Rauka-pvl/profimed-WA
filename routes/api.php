@@ -35,6 +35,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/patient/profile', [PatientController::class, 'profile']);
         Route::put('/patient/profile', [PatientController::class, 'update']);
 
+        Route::post('/device-token/update', [AuthController::class, 'deviceToken']);
+
         // Записи (appointments)
         Route::get('/appointments', [MobileAppointmentController::class, 'index']);
         Route::get('/appointments/{id}', [MobileAppointmentController::class, 'show']);

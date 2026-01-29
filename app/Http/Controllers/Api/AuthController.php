@@ -110,4 +110,25 @@ class AuthController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Вы вышли из системы']);
     }
+
+    public function deviceToken(Request $request)
+    {
+        $request->validate([
+            'patient_id' => 'required|exists:patients,id',
+            'device_token' => 'required|string',
+            'device_type' => 'required|string|in:ios,android',
+        ]);
+
+        $patient = $request->user();
+        if ((int) $request->patient_id !== $patient->id) {
+            throw ValidationException::withMessages(['patient_id' => ['Нельзя обновить токен другого пациента']]);
+        }
+
+        $patient->deviceTokens()->updateOrCreate(
+            ['device_token' => $request->device_token],
+            ['device_type' => $request->device_type, 'updated_at' => now()]
+        );
+
+        return response()->json(['success' => true, 'message' => 'Токен обновлён']);
+    }
 }
