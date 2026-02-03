@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\Appointment;
+use App\Models\PatientDeviceToken;
 use Illuminate\Support\Str;
 use Smalot\PdfParser\Parser;
 use Illuminate\Support\Facades\Log;
@@ -150,6 +151,18 @@ class PdfParserService
             ]);
             $this->stats['updated']++;
             Log::info("Приём обновлён: {$patientName} у {$doctor->name}");
+
+            // Отправляем уведомление на все устройства пациента
+            $deviceTokens = PatientDeviceToken::where('patient_id', $patient->id)
+                ->pluck('device_token');
+
+            foreach ($deviceTokens as $deviceToken) {
+                app(FirebaseService::class)->sendNotification(
+                    $deviceToken,
+                    'PROFIMED - Обновление приёма!',
+                    "Уважаемый {$patientName}, у вас обновлён приём: {$doctor->name} {$date} {$time}"
+                );
+            }
         } else {
             Appointment::create([
                 'doctor_id' => $doctor->id,
@@ -163,6 +176,18 @@ class PdfParserService
             ]);
             $isCancelled ? $this->stats['cancelled']++ : $this->stats['added']++;
             Log::info("Приём добавлен: {$patientName} у {$doctor->name}");
+
+            // Отправляем уведомление на все устройства пациента
+            $deviceTokens = PatientDeviceToken::where('patient_id', $patient->id)
+                ->pluck('device_token');
+
+            foreach ($deviceTokens as $deviceToken) {
+                app(FirebaseService::class)->sendNotification(
+                    $deviceToken,
+                    'PROFIMED - Новый приём!',
+                    "Уважаемый {$patientName}, у вас новый приём: {$doctor->name} {$date} {$time}"
+                );
+            }
         }
     }
 
