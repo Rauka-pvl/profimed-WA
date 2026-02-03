@@ -24,12 +24,17 @@ Route::get('/test', function () {
         );
 });
 
+
+// Отправка напоминаний
 Route::post('/webhook/whatsapp', [WebhookController::class, 'handleIncoming'])->name('webhook.whatsapp');
 // Route::get('/send-reminders', function () {
 //     return Artisan::call('reminders:send');
 // });
-Route::get('/send-reminders24', function () {
-    return Artisan::call('reminders24:send');
+Route::get('/send-reminders-firebase-24h', function () {
+    return Artisan::call('reminders-firebase-24h:send');
+});
+Route::get('/send-reminders-firebase-3h', function () {
+    return Artisan::call('reminders-firebase-3h:send');
 });
 
 // Авторизация (без токена)
