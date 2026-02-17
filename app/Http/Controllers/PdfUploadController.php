@@ -23,6 +23,8 @@ class PdfUploadController extends Controller
 
     public function upload(Request $request)
     {
+        set_time_limit(120); // 2 минуты на загрузку и парсинг (избегаем таймаута при медленной записи логов)
+
         $request->validate([
             'pdf' => 'required|file|mimes:pdf|max:102400', // max 100MB
         ]);
@@ -39,9 +41,13 @@ class PdfUploadController extends Controller
             // Парсим PDF
             $stats = $this->pdfParser->parse($fullPath);
 
-            LogHelper::userAction('Загрузка расписания врачей (PDF)', [
-                'filename' => $request->file('pdf')->getClientOriginalName(),
-            ]);
+            try {
+                LogHelper::userAction('Загрузка расписания врачей (PDF)', [
+                    'filename' => $request->file('pdf')->getClientOriginalName(),
+                ]);
+            } catch (\Throwable $e) {
+                // Игнорируем ошибки логирования, чтобы не блокировать ответ
+            }
 
             return redirect()->route('appointment.upload')
                 ->with('success', 'PDF успешно загружен и обработан!')

@@ -21,7 +21,6 @@ class PdfParserService
         'skipped' => 0,
     ];
 
-    // Черный список врачей (регистронезависимо)
     protected array $doctorBlacklist = [
         'куличкина людмила',
         'отделение проф.осмотра',
@@ -43,276 +42,305 @@ class PdfParserService
     public function parse(string $filePath)
     {
         $pdf = $this->parser->parseFile($filePath);
-        $text = preg_replace('/\s+/', ' ', $pdf->getText());
+        $rawText = $pdf->getText();
 
-        // Разделяем по врачам
-        $blocks = preg_split(
-            '/(?=\d{2}\.\d{2}\.\d{4}\s+[А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+\s+[А-ЯЁA-ZӘІҢҒҮҰҚӨҺ])/u',
-            $text,
-            -1,
-            PREG_SPLIT_NO_EMPTY
-        );
+        // Нормализуем переносы строк
+        $text = preg_replace('/\r\n|\r/', "\n", $rawText);
+        $lines = explode("\n", $text);
 
-        foreach ($blocks as $block) {
-            // Извлекаем дату и имя врача
-            if (!preg_match('/(\d{2}\.\d{2}\.\d{4})\s+([А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][^\n\r]+?)(?=Время\s+Кабинет|$)/u', $block, $m)) {
-                continue;
-            }
+        $date = $this->extractDate($lines);
+        $doctorName = $this->extractDoctorName($lines);
+        $defaultService = $this->extractDefaultService($text);
 
-            $date = date('Y-m-d', strtotime(str_replace('.', '-', $m[1])));
-            $doctorName = $this->cleanDoctorName($m[2]);
+        if (!$date || !$doctorName) {
+            Log::warning('PDF: не удалось извлечь дату или врача', compact('date', 'doctorName'));
+            return $this->stats;
+        }
 
-            // Проверка на черный список
-            if ($this->isBlacklisted($doctorName)) {
-                Log::info("Врач пропущен (черный список): {$doctorName}");
-                continue;
-            }
+        $dateStr = $date->format('Y-m-d');
+        $doctorName = $this->cleanDoctorName($doctorName);
 
-            $doctor = Doctor::firstOrCreate(['name' => $doctorName]);
-            Log::info("Обработка врача: {$doctorName}");
+        if ($this->isBlacklisted($doctorName)) {
+            Log::info("Врач пропущен (черный список): {$doctorName}");
+            return $this->stats;
+        }
 
-            // Улучшенная регулярка для парсинга приёмов
-            // Захватываем 2-3 слова для ФИО пациента
-            preg_match_all(
-                '/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s+[^\(]*?\(\s*([^)]+)\s*\)\s+([А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+(?:\s+[А-ЯЁA-ZӘІҢҒҮҰҚӨҺ][а-яёa-zәіңғүұқөһ]+){1,2})\s*(.*?)(?=\d{2}:\d{2}\s*-\s*\d{2}:\d{2}|Всего приемов|Время\s+Кабинет|$)/su',
-                $block,
-                $matches,
-                PREG_SET_ORDER
-            );
+        $doctor = Doctor::firstOrCreate(['name' => $doctorName]);
+        Log::info("Обработка врача: {$doctorName}, дата: {$dateStr}");
 
-            foreach ($matches as $m) {
-                $this->processAppointment($m, $doctor, $date);
-            }
+        $rows = $this->extractAppointmentRows($lines);
+
+        foreach ($rows as $row) {
+            $this->processAppointmentRow($row, $doctor, $dateStr, $defaultService);
         }
 
         return $this->stats;
     }
 
-    protected function processAppointment(array $match, Doctor $doctor, string $date): void
+    /**
+     * Извлечь дату из PDF (Период: DD.MM.YYYY или строка DD.MM.YYYY)
+     */
+    protected function extractDate(array $lines): ?\DateTime
     {
-        $start = trim($match[1]);
-        $end = trim($match[2]);
-        $time = "{$start} - {$end}";
-        $cabinet = trim($match[3]);
-        $patientName = $this->cleanPatientName($match[4]);
+        foreach ($lines as $line) {
+            if (preg_match('/Период:\s*(\d{2})\.(\d{2})\.(\d{4})/u', $line, $m)) {
+                $d = \DateTime::createFromFormat('Y-m-d', "{$m[3]}-{$m[2]}-{$m[1]}");
+                return $d ?: null;
+            }
+            if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})\s+/u', trim($line), $m)) {
+                $d = \DateTime::createFromFormat('Y-m-d', "{$m[3]}-{$m[2]}-{$m[1]}");
+                return $d ?: null;
+            }
+        }
+        return null;
+    }
 
-        // Извлечение остальной части (телефоны + услуга)
-        $remainder = $match[5] ?? '';
+    /**
+     * Извлечь имя врача (Специалисты: ФИО или из строки DD.MM.YYYY Фамилия Имя)
+     */
+    protected function extractDoctorName(array $lines): ?string
+    {
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (preg_match('/Специалисты:\s*(.+)/u', $line, $m)) {
+                return trim($m[1]);
+            }
+            if (preg_match('/^\d{2}\.\d{2}\.\d{4}\s+(.+)/u', $line, $m)) {
+                return trim($m[1]);
+            }
+        }
+        return null;
+    }
 
-        // Извлекаем телефоны ДО того, как появится следующее время
-        $phones = $this->extractPhones($remainder);
-        $primaryPhone = $phones[0] ?? null; // Только первый валидный номер
-        $allPhones = $primaryPhone; // Сохраняем только один номер
+    /**
+     * Извлечь услугу по умолчанию (строка после "Услуги" до "Всего приемов")
+     */
+    protected function extractDefaultService(string $text): string
+    {
+        if (preg_match('/Услуги\s*\n\s*([^\n]+?)(?=\s*Всего приемов|$)/su', $text, $m)) {
+            $service = trim(preg_replace('/\s+/', ' ', $m[1]));
+            return $service ?: 'Не указано';
+        }
+        return 'Не указано';
+    }
 
-        // Извлекаем услугу (всё после телефонов до конца или до времени)
-        $service = $this->extractService($remainder);
+    /**
+     * Разбить текст на блоки по строкам с временем приёма и извлечь данные по каждому приёму
+     */
+    protected function extractAppointmentRows(array $lines): array
+    {
+        $rows = [];
+        $i = 0;
+        $n = count($lines);
 
-        if (!$patientName) {
-            $this->stats['skipped']++;
-            Log::warning("Пациент пропущен: пустое имя");
-            return;
+        while ($i < $n) {
+            $line = trim($lines[$i]);
+
+            // Ищем строку с временем вида "07:45 - 08:00"
+            if (preg_match('/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s*$/u', $line, $timeMatch)) {
+                $time = $timeMatch[1] . ' - ' . $timeMatch[2];
+                $blockLines = [];
+
+                $i++;
+                while ($i < $n) {
+                    $next = trim($lines[$i]);
+                    // Следующий приём или конец блока
+                    if (preg_match('/^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*$/u', $next)) {
+                        break;
+                    }
+                    if (Str::startsWith(mb_strtolower($next), 'всего приемов')) {
+                        break;
+                    }
+                    if ($next !== '') {
+                        $blockLines[] = $next;
+                    }
+                    $i++;
+                }
+
+                $row = $this->parseBlockIntoRow($time, $blockLines);
+                if ($row) {
+                    $rows[] = $row;
+                }
+                continue;
+            }
+
+            $i++;
         }
 
-        // Проверка на выездные услуги
+        return $rows;
+    }
+
+    /**
+     * Из блока строк после времени извлечь кабинет, ФИО, телефон, услугу
+     */
+    protected function parseBlockIntoRow(string $time, array $blockLines): ?array
+    {
+        $cabinetParts = [];
+        $patientParts = [];
+        $phone = null;
+        $service = null;
+
+        foreach ($blockLines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            // Номер телефона
+            if (preg_match('/^\+?[78][\s\d\-]{10,}$/u', preg_replace('/\s+/', '', $line))) {
+                $phone = preg_replace('/[^\d+]/', '', $line);
+                if (str_starts_with($phone, '8')) {
+                    $phone = '+7' . substr($phone, 1);
+                } elseif (preg_match('/^7\d{10}$/', $phone)) {
+                    $phone = '+' . $phone;
+                }
+                continue;
+            }
+
+            // Уже нашли телефон — следующая короткая строка может быть услуга
+            if ($phone !== null && $service === null && mb_strlen($line) < 100 && !preg_match('/^\d{2}:\d{2}/', $line)) {
+                $service = $line;
+                continue;
+            }
+
+            // Служебные слова — не ФИО
+            if (preg_match('/кб\.|врач|диагностики|кабинет|цоколь|№\d+|функциональной|\(|\)/iu', $line)) {
+                if (empty($patientParts)) {
+                    $cabinetParts[] = $line;
+                }
+                continue;
+            }
+
+            // Похоже на ФИО: только буквы (кириллица/латиница) и пробелы, без цифр
+            if (preg_match('/^[А-Яа-яЁёӘәІіҢңҒғҮүҰұҚқӨөҺһA-Za-z\s\-]+$/u', $line) && !preg_match('/\d/', $line)) {
+                $patientParts[] = $line;
+                continue;
+            }
+
+            // Всё остальное до первого ФИО — кабинет
+            if (empty($patientParts) && $phone === null) {
+                $cabinetParts[] = $line;
+            }
+        }
+
+        $patientName = $this->cleanPatientName(implode(' ', $patientParts));
+        if ($patientName === '') {
+            return null;
+        }
+
+        return [
+            'time' => $time,
+            'cabinet' => trim(implode(' ', $cabinetParts)) ?: '',
+            'patient_name' => $patientName,
+            'phone' => $phone,
+            'service' => $service,
+        ];
+    }
+
+    protected function processAppointmentRow(array $row, Doctor $doctor, string $dateStr, string $defaultService): void
+    {
+        $time = $row['time'];
+        $cabinet = $row['cabinet'];
+        $patientName = $row['patient_name'];
+        $phone = $row['phone'];
+        $service = $row['service'] ?? $defaultService;
+
+        $isCancelled = (Str::contains($time, '00:00'));
+        $status = $isCancelled ? 'cancelled' : 'scheduled';
+
         if (Str::contains(mb_strtolower($service), ['на дому', 'выезд'])) {
             $this->stats['skipped']++;
             Log::info("Приём пропущен (выезд): {$patientName}");
             return;
         }
 
-        // Определяем статус
-        $isCancelled = ($start === '00:00' || $end === '00:00');
-        $status = $isCancelled ? 'cancelled' : 'scheduled';
-
-        // Создаем или обновляем пациента
         $patient = Patient::firstOrCreate(
             ['full_name' => $patientName],
-            ['phone' => $allPhones]
+            ['phone' => $phone ?: null]
         );
 
-        if (!$patient->phone && !empty($allPhones)) {
-            $patient->update(['phone' => $allPhones]);
+        if (!$patient->phone && $phone) {
+            $patient->update(['phone' => $phone]);
         }
 
-        // Создаем или обновляем приём
         $appointment = Appointment::where([
             ['doctor_id', $doctor->id],
             ['patient_id', $patient->id],
-            ['date', $date],
+            ['date', $dateStr],
         ])->first();
 
+        $payload = [
+            'time' => $time,
+            'service' => $service ?: 'Не указано',
+            'cabinet' => $cabinet ?: '',
+            'status' => $status,
+        ];
+
         if ($appointment) {
-            $appointment->update([
-                'time' => $time,
-                'service' => $service ?: 'Не указано',
-                'cabinet' => $cabinet ?: '',
-                'status' => $status,
-                'phones' => $allPhones,
-            ]);
+            $appointment->update($payload);
             $this->stats['updated']++;
             Log::info("Приём обновлён: {$patientName} у {$doctor->name}");
 
-            // Отправляем уведомление на все устройства пациента
-            $deviceTokens = PatientDeviceToken::where('patient_id', $patient->id)
-                ->pluck('device_token');
-
-            foreach ($deviceTokens as $deviceToken) {
-                app(FirebaseService::class)->sendNotification(
-                    $deviceToken,
-                    'PROFIMED - Обновление приёма!',
-                    "Уважаемый {$patientName}, у вас обновлён приём: {$doctor->name} {$date} {$time}"
-                );
-            }
+            $this->sendNotificationToPatient($patient, $patientName, $doctor->name, $dateStr, $time, 'PROFIMED - Обновление приёма!', 'Уважаемый(ая) %s, у вас обновлён приём: %s %s %s');
         } else {
-            Appointment::create([
+            Appointment::create(array_merge($payload, [
                 'doctor_id' => $doctor->id,
                 'patient_id' => $patient->id,
-                'date' => $date,
-                'time' => $time,
-                'service' => $service ?: 'Не указано',
-                'cabinet' => $cabinet ?: '',
-                'status' => $status,
-                'phones' => $allPhones,
-            ]);
+                'date' => $dateStr,
+            ]));
             $isCancelled ? $this->stats['cancelled']++ : $this->stats['added']++;
             Log::info("Приём добавлен: {$patientName} у {$doctor->name}");
 
-            // Отправляем уведомление на все устройства пациента
-            $deviceTokens = PatientDeviceToken::where('patient_id', $patient->id)
-                ->pluck('device_token');
-
-            foreach ($deviceTokens as $deviceToken) {
-                app(FirebaseService::class)->sendNotification(
-                    $deviceToken,
-                    'PROFIMED - Новый приём!',
-                    "Уважаемый {$patientName}, у вас новый приём: {$doctor->name} {$date} {$time}"
-                );
-            }
+            $this->sendNotificationToPatient($patient, $patientName, $doctor->name, $dateStr, $time, 'PROFIMED - Новый приём!', 'Уважаемый(ая) %s, у вас новый приём: %s %s %s');
         }
     }
 
-    protected function extractPhones(string $text): array
-    {
-        // Убираем всё после времени следующего приёма
-        $text = preg_replace('/\d{2}:\d{2}\s*-\s*\d{2}:\d{2}.*$/su', '', $text);
+    protected function sendNotificationToPatient(
+        Patient $patient,
+        string $patientName,
+        string $doctorName,
+        string $dateStr,
+        string $time,
+        string $title,
+        string $bodyFormat
+    ): void {
+        $deviceTokens = PatientDeviceToken::where('patient_id', $patient->id)->pluck('device_token');
+        $body = sprintf($bodyFormat, $patientName, $doctorName, $dateStr, $time);
 
-        // Ищем все телефоны
-        preg_match_all('/\+?[78]\s*\d{3}\s*\d{3}\s*\d{2}\s*\d{2}/u', $text, $phoneMatches);
-
-        $phones = collect($phoneMatches[0] ?? [])
-            ->map(function ($p) {
-                $p = preg_replace('/[^\d+]/', '', $p);
-                if (str_starts_with($p, '8')) {
-                    $p = '+7' . substr($p, 1);
-                } elseif (preg_match('/^7\d{10}$/', $p)) {
-                    $p = '+' . $p;
-                }
-                return (strlen($p) >= 11 && strlen($p) <= 13) ? $p : null;
-            })
-            ->filter()
-            ->values()
-            ->toArray();
-
-        // Проверяем первый номер
-        if (!empty($phones)) {
-            $firstPhone = $phones[0];
-
-            // Проверяем все варианты проблемных номеров
-            if ($this->isInvalidPhone($firstPhone)) {
-                // Если первый номер невалидный, берём второй (если есть)
-                if (isset($phones[1])) {
-                    return [$phones[1]];
-                } else {
-                    // Если второго нет - не записываем телефон вообще
-                    return [];
-                }
-            }
-
-            // Возвращаем только первый валидный номер
-            return [$firstPhone];
-        }
-
-        return [];
-    }
-
-    protected function isInvalidPhone(string $phone): bool
-    {
-        // Все варианты невалидных номеров
-        $invalidPrefixes = [
-            '+77182',
-            '+7182',
-            '+7 7182',
-            '+7 182',
-        ];
-
-        foreach ($invalidPrefixes as $prefix) {
-            $normalizedPrefix = str_replace(' ', '', $prefix);
-            $normalizedPhone = str_replace(' ', '', $phone);
-
-            if (str_starts_with($normalizedPhone, $normalizedPrefix)) {
-                return true;
+        foreach ($deviceTokens as $deviceToken) {
+            try {
+                app(FirebaseService::class)->sendNotification($deviceToken, $title, $body);
+            } catch (\Throwable $e) {
+                Log::warning('Ошибка отправки FCM', ['patient_id' => $patient->id, 'error' => $e->getMessage()]);
             }
         }
-
-        return false;
-    }
-
-    protected function extractService(string $text): string
-    {
-        // Удаляем телефоны
-        $text = preg_replace('/\+?[78]\s*\d{3}\s*\d{3}\s*\d{2}\s*\d{2}/u', '', $text);
-
-        // Удаляем лишний текст (примечания, и т.д.)
-        $text = preg_replace('/Примечание:.*$/su', '', $text);
-        $text = preg_replace('/Всего приемов.*$/su', '', $text);
-
-        // Очищаем и возвращаем
-        return trim($text) ?: 'Не указано';
     }
 
     protected function cleanDoctorName(string $text): string
     {
-        // Удаляем информацию о кабинетах в скобках
         $text = preg_replace('/\([^)]*\)/u', '', $text);
-
-        // Удаляем служебные слова
         $text = preg_replace('/\b(Время|врач|каб\.?|кб\.?|закрыт|Прикрепленный контингент)\b/iu', '', $text);
-
-        // Очищаем от спецсимволов, но сохраняем казахские буквы
         $text = trim(preg_replace('/[^А-Яа-яЁёӘәІіҢңҒғҮүҰұҚқӨөҺһA-Za-z\s-]/u', '', $text));
-
-        // Берём только первые два слова (Фамилия Имя)
         $parts = preg_split('/\s+/u', $text);
-        $result = implode(' ', array_slice($parts, 0, 2));
-
-        return trim($result);
+        return trim(implode(' ', array_slice($parts, 0, 2)));
     }
 
     protected function cleanPatientName(string $text): string
     {
-        // Удаляем служебные слова
         $text = preg_replace('/\b(Прикрепленный контингент|Частное Лицо)\b/iu', '', $text);
-
-        // Очищаем от лишних символов, сохраняем казахские буквы
         $text = trim(preg_replace('/[^А-Яа-яЁёӘәІіҢңҒғҮүҰұҚқӨөҺһA-Za-z\s-]/u', '', $text));
-
-        // Берём до 3 слов (Фамилия Имя Отчество), если есть
         $parts = preg_split('/\s+/u', $text);
-        $result = implode(' ', array_slice($parts, 0, 3));
-
-        return trim($result);
+        return trim(implode(' ', array_slice($parts, 0, 3)));
     }
 
     protected function isBlacklisted(string $doctorName): bool
     {
-        $lowerName = mb_strtolower($doctorName);
-
+        $lower = mb_strtolower($doctorName);
         foreach ($this->doctorBlacklist as $blacklisted) {
-            if (str_contains($lowerName, $blacklisted)) {
+            if (Str::contains($lower, $blacklisted)) {
                 return true;
             }
         }
-
         return false;
     }
 }
