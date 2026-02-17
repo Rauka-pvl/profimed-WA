@@ -186,15 +186,26 @@ class PdfParserService
                 continue;
             }
 
-            // Номер телефона
-            if (preg_match('/^\+?[78][\s\d\-]{10,}$/u', preg_replace('/\s+/', '', $line))) {
-                $phone = preg_replace('/[^\d+]/', '', $line);
-                if (str_starts_with($phone, '8')) {
-                    $phone = '+7' . substr($phone, 1);
-                } elseif (preg_match('/^7\d{10}$/', $phone)) {
-                    $phone = '+' . $phone;
+            // Номер телефона (целая строка или внутри строки: +7..., 8..., 7...)
+            if (preg_match('/\+?[78][\s\d\-]{10,}/u', $line, $phoneMatch)) {
+                $phone = preg_replace('/[^\d+]/', '', $phoneMatch[0]);
+                if (strlen($phone) >= 10) {
+                    if (str_starts_with($phone, '8')) {
+                        $phone = '+7' . substr($phone, 1);
+                    } elseif (preg_match('/^7\d{10}$/', $phone)) {
+                        $phone = '+' . $phone;
+                    } elseif (!str_starts_with($phone, '+')) {
+                        $phone = '+' . $phone;
+                    }
+                    if (strlen($phone) < 11) {
+                        $phone = null;
+                    }
+                } else {
+                    $phone = null;
                 }
-                continue;
+                if ($phone !== null) {
+                    continue;
+                }
             }
 
             // Уже нашли телефон — следующая короткая строка может быть услуга
@@ -259,7 +270,8 @@ class PdfParserService
             ['phone' => $phone ?: null]
         );
 
-        if (!$patient->phone && $phone) {
+        // Всегда обновляем телефон из PDF, если он извлечён (актуальные данные из расписания)
+        if ($phone !== null && $phone !== '') {
             $patient->update(['phone' => $phone]);
         }
 

@@ -83,7 +83,7 @@ class AuthController extends Controller
 
         $patient = Patient::firstOrCreate(
             ['phone' => '+' . $phone],
-            ['full_name' => 'Test Patient']
+            ['full_name' => 'Новый пациент']
         );
 
         $token = $patient->createToken('mobile_app')->plainTextToken;
